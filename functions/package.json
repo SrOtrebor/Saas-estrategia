@@ -1,0 +1,39 @@
+{
+  "name": "saas-estrategias-functions",
+  "version": "1.0.0",
+  "description": "Agente Autónomo de Contenido Multimarca — Firebase Cloud Functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.12.0",
+    "@google/genai": "^2.8.0",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^7.2.5",
+    "form-data": "^4.0.0",
+    "google-auth-library": "^10.6.2",
+    "googleapis": "^173.0.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.52.7",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "firebase-functions-test": "^3.3.0",
+    "typescript": "^5.4.5"
+  },
+  "private": true
+}
