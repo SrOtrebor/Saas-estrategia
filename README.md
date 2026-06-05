@@ -1,212 +1,103 @@
-# 🤖 SaaS Estrategias — Agente Autónomo de Contenido para Instagram
+# 🚀 SaaS Estrategias — Content AI Pipeline
 
-Sistema serverless que actúa como **estratega, planificador y generador de contenido automatizado** para Instagram. 100% paramétrico, multimarca y multitenant. Toda la lógica de la IA, identidad visual y canales de distribución se gobiernan desde Firestore — sin tocar una línea de código.
+Plataforma de automatización y generación de contenido impulsada por IA, construida para **Estudio Precinto**. 
+El sistema permite que un operador envíe una nota de voz o mensaje de texto a través de Telegram, y en segundos, la IA procesa ese input para generar un carrusel de Instagram completo (Copy, Hashtags y Diseño Gráfico) aplicando la identidad visual, el logo y el tono de comunicación de la marca del cliente.
 
----
+## 🏗️ Arquitectura y Tecnologías
 
-## 🏗️ Arquitectura
+El backend está construido de manera 100% serverless sobre **Firebase (Node.js 22)**:
 
-```
-INPUTS                   PROCESAMIENTO                    OUTPUTS
-──────                   ─────────────                    ───────
-Telegram Bot    ──→      Cloud Function                   Planificador
-(texto/voz)              generarContenidoEspontaneo  ──→  en Firestore
-                         │
-Scheduler       ──→      1. Lee config de marca           Panel de
-(Lunes 8am)              2. Gemini 2.5 Flash              Control  ──→  Instagram
-                         3. Imagen 4 Fast            ──→  (aprobación)
-                         4. Firebase Storage               
-                         5. Guarda en Firestore
-```
+- **Orquestador**: Firebase Cloud Functions (`generarContenidoEspontaneo`)
+- **Base de Datos**: Firestore (colecciones: `marcas`, `cola_ingesta`, `planificador_contenido`)
+- **Motor de Texto (Copywriting)**: Gemini 2.5 Flash
+- **Motor de Imágenes (Fondos)**: Google Imagen 4 Fast
+- **Motor Gráfico (Composición)**: Sharp (Node.js) + SVG Overlay dinámico
+- **Almacenamiento**: Firebase Storage (alberga logos y assets renderizados)
+- **Notificaciones e Input**: API de Telegram Bot (Webhooks)
+- **Histórico (Base de datos relacional/cliente)**: Google Sheets API
 
----
+## 🔄 Flujo de Datos del Pipeline
 
-## ⚙️ Stack Tecnológico
+1. **Telegram Webhook (`ingestaEntradaEspontanea`)**: Recibe mensajes del operador y los guarda en la colección `cola_ingesta` de Firestore indicando a qué marca pertenece.
+2. **Disparador Firestore (`generarContenidoEspontaneo`)**: Escucha los nuevos documentos en `cola_ingesta` e inicia el pipeline:
+   - Extrae los datos de la marca (`identidad_visual`, `comunicacion`).
+   - Envía el input del usuario a **Gemini 2.5 Flash** con un system prompt estructurado para generar copy, hashtags y textos cortos.
+   - Envía prompts a **Imagen 4** para generar fondos oscuros/profesionales de oficinas o infraestructura tecnológica sin texto.
+   - Pasa las imágenes por **Sharp**, superponiendo un SVG que contiene el texto de cada slide, un gradiente oscuro, la barra de progreso, y el **logo del cliente**.
+   - Sube los resultados a **Firebase Storage**.
+   - Guarda el resultado consolidado en la colección `planificador_contenido`.
+   - Registra una nueva fila en el **Google Sheets** histórico del cliente.
+   - Notifica por **Telegram** al operador con el carrusel y copy listos para revisar.
 
-| Capa | Tecnología | Costo |
-|---|---|---|
-| **Backend / Compute** | Firebase Cloud Functions (Node.js / TypeScript) | $0 (Blaze, límites gratuitos) |
-| **Base de datos** | Firestore | $0 (50k lecturas/día gratis) |
-| **Almacenamiento imágenes** | Firebase Storage | $0 (5 GB gratis) |
-| **IA — Texto** | Google Gemini 2.5 Flash | $0 (capa gratuita) |
-| **IA — Imágenes** | Google Imagen 4 Fast | ~$0.004/imagen |
-| **Motor gráfico** | Sharp + SVG | $0 |
-| **Mensajería** | Telegram Bot API | $0 |
-| **Publicación** | Meta Graph API (Instagram) | $0 |
+## ⚙️ Variables de Entorno y Configuración
 
-**Costo mensual estimado para 1 marca (4 posts/semana):** < $0.20 USD
+El sistema requiere las siguientes variables de entorno para funcionar. En producción de Firebase Functions, se configuran vía `.env`:
 
----
+```env
+# Google Cloud AI (Para Gemini e Imagen)
+GEMINI_API_KEY=your_gemini_api_key
 
-## 📁 Estructura del Proyecto
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_WEBHOOK_SECRET=secret_string_for_webhook_validation
+TELEGRAM_BOT_USERNAME=tu_bot_name
 
-```
-SaaS-estrategias/
-├── functions/                          # Firebase Cloud Functions
-│   ├── src/
-│   │   ├── index.ts                    # Entry point — exporta todas las funciones
-│   │   ├── interfaces.ts              # Tipos TypeScript (MarcaConfig, PosteoContenido, etc.)
-│   │   ├── functions/
-│   │   │   ├── generarContenidoEstrategico.ts  # Función principal de generación
-│   │   │   ├── ingestaEntradaEspontanea.ts     # Webhook de Telegram
-│   │   │   └── publicadorContenidoInstagram.ts # Publicador en Meta/Instagram
-│   │   └── lib/
-│   │       ├── gemini.ts              # Cliente Google Gemini 2.5 Flash
-│   │       └── imageGenerator.ts     # Motor gráfico Sharp+SVG (fallback sin IA)
-│   ├── .env                           # Variables de entorno (NO subir a git)
-│   ├── seed.js                        # Script para poblar Firestore con marca demo
-│   ├── test-gemini.js                 # Test: generación de texto con Gemini
-│   ├── test-imagen.js                 # Test: generación gráfica Sharp+SVG
-│   ├── test-imagen-ia.js              # Test: fondos con Google Imagen 4 Fast
-│   └── package.json
-├── saas-estrategias-firebase-adminsdk-*.json  # Service account (NO subir a git)
-└── README.md
+# Google Sheets
+GOOGLE_SHEETS_ID=your_spreadsheet_id
+
+# Meta Graph API (Próxima etapa)
+META_LONG_LIVED_TOKEN=PENDIENTE
 ```
 
----
+## 🚀 Despliegue (Deploy)
 
-## 🗄️ Colecciones en Firestore
+Para subir cualquier cambio al código fuente, se utiliza Firebase CLI:
 
-### `/marcas/{id_marca}`
-Documento de configuración de cada marca. Controla toda la IA.
+```bash
+# Compilar TypeScript
+cd functions
+npm run build
 
+# Desplegar la función principal a Google Cloud
+firebase deploy --only "functions:generarContenidoEspontaneo"
+firebase deploy --only "functions:ingestaEntradaEspontanea"
+```
+
+> **Aclaración sobre Permisos**: La función `ingestaEntradaEspontanea` (el webhook de Telegram) necesita permisos públicos en Google Cloud IAM para poder recibir los POST requests de Telegram. El rol necesario es `Cloud Functions Invoker` para el principal `allUsers`.
+
+## 🏢 Cómo dar de alta un nuevo cliente (Tenant)
+
+La arquitectura es "Multi-tenant". Para configurar un nuevo cliente, se debe crear un documento en la colección `marcas` de Firestore con el `id_marca`.
+
+**Ejemplo de estructura de marca:**
 ```json
 {
-  "id_marca": "panaderia-demo",
-  "nombre_comercial": "Panadería Demo",
+  "nombre_comercial": "Estudio Precinto",
   "datos_negocio": {
-    "rubro": "Panadería Artesanal",
-    "publico_objetivo": "Familias y adultos de 25-50 años...",
-    "propuesta_valor": "Pan sin conservantes, amasado a mano..."
+    "rubro": "Consultoría operativa y software a medida",
+    "publico_objetivo": "Dueños de negocios...",
+    "propuesta_valor": "Mapea y elimina agujeros negros operativos..."
   },
   "comunicacion": {
-    "tono_de_voz": "Cálido, cercano, español rioplatense...",
-    "pilares_contenido": ["Detrás de cámaras", "Producto estrella", "..."],
-    "cuentas_referencia": ["@panaderia_referencia"]
+    "tono_de_voz": "Directo, ingeniería, Orden y firmeza.",
+    "pilares_contenido": ["Casos de éxito", "Educación", "Filosofía"]
   },
   "identidad_visual": {
-    "color_primario_hex": "#C8703A",
-    "color_secundario_hex": "#F5ECD7",
-    "logo_url": "https://...",
-    "fuente_titulo": "Georgia"
+    "color_primario_hex": "#0E132B",
+    "color_secundario_hex": "#39506B",
+    "logo_url": "https://storage.googleapis.com/.../logofull.svg"
   },
-  "distribucion": {
-    "telegram_chat_id": "-1001234567890",
-    "instagram_page_id": "...",
-    "instagram_access_token": "..."
+  "credenciales_redes": {
+    "telegram_chat_id": "677028989"
   }
 }
 ```
 
-### `/cola_ingesta/{id}`
-Input espontáneo desde Telegram. Al crearse, dispara la generación inmediata.
+## 🗺️ Roadmap (Próximos Pasos)
 
-### `/planificador_contenido/{id_post}`
-Posts generados listos para aprobación y publicación.
-
----
-
-## 🚀 Setup Inicial
-
-### 1. Requisitos
-- Node.js 20+
-- Firebase CLI (`npm install -g firebase-tools`)
-- Cuenta de Firebase (proyecto `saas-estrategias`)
-- API Key de Google AI Studio (con créditos para Imagen 4)
-
-### 2. Instalar dependencias
-```bash
-cd functions
-npm install
-```
-
-### 3. Configurar variables de entorno
-Crear `functions/.env` con:
-```env
-# Google AI Studio (Gemini + Imagen 4)
-GEMINI_API_KEY=AQ.Tu_Clave_Aqui
-
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=PENDIENTE
-TELEGRAM_WEBHOOK_SECRET=PENDIENTE
-
-# Meta / Instagram
-META_LONG_LIVED_TOKEN=PENDIENTE
-
-# Firebase
-FIREBASE_PROJECT_ID=saas-estrategias
-GOOGLE_APPLICATION_CREDENTIALS=../saas-estrategias-firebase-adminsdk-fbsvc-xxxxx.json
-```
-
-### 4. Poblar Firestore con marca demo
-```bash
-cd functions
-node seed.js
-```
-
-### 5. Probar la IA
-```bash
-# Test generación de texto (Gemini 2.5 Flash)
-node test-gemini.js
-
-# Test motor gráfico (Sharp + SVG, sin IA)
-node test-imagen.js
-
-# Test fondos de IA (Google Imagen 4 Fast — requiere créditos)
-node test-imagen-ia.js
-```
-
-### 6. Compilar TypeScript
-```bash
-npm run build
-```
-
-### 7. Deploy a Firebase
-```bash
-firebase deploy --only functions
-```
+1. **[PENDIENTE] PWA Tinder de Aprobación**: Interfaz web mobile-first donde el cliente puede hacer "swipe" (deslizar) para Aprobar o Rechazar el contenido generado.
+2. **[PENDIENTE] Publicador Instagram API**: Función que, al aprobar un posteo en la PWA, inyecte automáticamente el carrusel en la cuenta de Instagram usando Meta Graph API.
+3. **[PENDIENTE] Hardening de Producción**: Alertas de Cloud Monitoring, Secrets Manager, y Reglas de Seguridad en Firestore/Storage.
 
 ---
-
-## 🔧 Variables de Entorno Requeridas
-
-| Variable | Descripción | Estado |
-|---|---|---|
-| `GEMINI_API_KEY` | Google AI Studio — Gemini + Imagen | ✅ Configurado |
-| `TELEGRAM_BOT_TOKEN` | Token del bot de Telegram | ⏳ Pendiente |
-| `TELEGRAM_WEBHOOK_SECRET` | Secret para validar webhooks | ⏳ Pendiente |
-| `META_LONG_LIVED_TOKEN` | Token de la Graph API de Meta | ⏳ Pendiente |
-
----
-
-## 🌊 Flujo de Generación de Contenido
-
-1. **Trigger** → Scheduler semanal (lunes 8am) o ingesta espontánea desde Telegram
-2. **Leer marca** → Se obtiene la config completa de `/marcas/{id_marca}` en Firestore
-3. **Construir prompt** → Se inyectan todas las variables de la marca en el prompt maestro
-4. **Gemini 2.5 Flash** → Genera copy, hashtags, textos de slides, fecha sugerida (JSON)
-5. **Imagen 4 Fast** → Genera fondo fotográfico único por slide según el tema del post
-6. **Sharp** → Compone la imagen final: fondo IA + overlay de texto + branding de marca
-7. **Firebase Storage** → Sube los PNGs finales (1080x1080)
-8. **Firestore** → Guarda el post completo en `/planificador_contenido` con estado `PENDIENTE`
-9. **Telegram** → Notifica al operador con preview del contenido
-10. **Aprobación** → El operador revisa y aprueba (Panel de Control o Telegram)
-11. **Instagram** → `publicadorContenidoInstagram` publica via Meta Graph API
-
----
-
-## 🔒 Seguridad
-
-- Las claves de API están en `.env` (nunca subir al repositorio)
-- El service account de Firebase tiene permisos mínimos necesarios
-- El webhook de Telegram valida el `X-Telegram-Bot-Api-Secret-Token`
-- Reglas de Firestore en modo producción (no test mode) antes del deploy
-
----
-
-## 📝 Notas de Arquitectura
-
-- **Instagram Stories**: No pueden automatizarse via API. El sistema las enruta a Telegram para aprobación manual.
-- **JSON garantizado**: Gemini usa `responseMimeType: "application/json"` para evitar texto adicional.
-- **Patrón dual trigger**: `generarGrillaSemanal` (PubSub) + `generarContenidoEspontaneo` (OnCreate Firestore).
-- **Motor gráfico fallback**: Si Imagen 4 falla (créditos agotados), `imageGenerator.ts` genera slides con Sharp+SVG.
+*Diseñado bajo la filosofía: Orden y Firmeza.*
