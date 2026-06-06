@@ -86,7 +86,10 @@ export const generarContenidoEspontaneo = functions
     // ─── Paso 3: Enrutar según Intención ───────────────────────
     if (IA.intencion === "IDEACION") {
       functions.logger.info(`[espontaneo] Intención: IDEACION. Enviando mensaje.`);
-      await enviarMensaje(chatId, IA.respuesta_texto || "Aquí tienes algunas ideas...");
+      const replyMarkup = {
+        inline_keyboard: [[{ text: "💾 Desarrollar y guardar en Docs", callback_data: "aprobar_ideas" }]]
+      };
+      await enviarMensaje(chatId, IA.respuesta_texto || "Aquí tienes algunas ideas...", replyMarkup);
       await snap.ref.delete(); // Limpiar cola
       return;
     }
@@ -187,9 +190,9 @@ Si el usuario te pide tendencias, ideas, de qué hablar, o simplemente te cuenta
 - USÁ GOOGLE SEARCH para investigar las tendencias actuales de hoy sobre el tema o rubro.
 - Devolvé intencion: "IDEACION".
 - En respuesta_texto, escribile en Markdown:
-  1) Breve resumen de las 2 tendencias actuales reales (basadas en tu búsqueda).
-  2) 2 Guiones cortos para Reels listos para grabar (con Hook, Retención y CTA).
-  3) 2 Ideas conceptuales para Carruseles.
+  1) Breve resumen de las 2 tendencias actuales reales.
+  2) 2 Ideas conceptuales MUY RESUMIDAS (solo la premisa principal, un párrafo por idea) para guiones o carruseles.
+IMPORTANTE: Debes ser extremadamente breve en IDEACION para evitar límites de texto en Telegram. NO escribas el guion completo todavía.
 
 MODO 2: EJECUCIÓN (Generar Carrusel Final)
 Si el usuario te dice explícitamente "Armá el carrusel de la idea 2", "Hacé el carrusel sobre X", o te da un texto directo para diseñar:
@@ -452,7 +455,7 @@ async function subirConReintentos(
 // HELPERS — Telegram
 // ═══════════════════════════════════════════════════════════════
 
-const enviarMensaje = async (chatId: string, text: string) => {
+const enviarMensaje = async (chatId: string, text: string, replyMarkup?: any) => {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const MAX_LENGTH = 3500;
   
@@ -460,7 +463,8 @@ const enviarMensaje = async (chatId: string, text: string) => {
   const paragraphs = text.split("\n\n");
   let currentChunk = "";
 
-  for (const p of paragraphs) {
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = paragraphs[i];
     if ((currentChunk.length + p.length) > MAX_LENGTH) {
       if (currentChunk.trim().length > 0) {
         try {
@@ -485,6 +489,7 @@ const enviarMensaje = async (chatId: string, text: string) => {
         chat_id: chatId,
         text: currentChunk.trim(),
         parse_mode: "Markdown",
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
       });
     } catch (err) {
       functions.logger.warn("[espontaneo] Error enviando chunk final:", err);

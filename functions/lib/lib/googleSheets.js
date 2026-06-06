@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.agregarFilaPost = agregarFilaPost;
-const googleapis_1 = require("googleapis");
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 // Cache del cliente autenticado
 let sheetsClient = null;
@@ -11,11 +10,12 @@ async function getSheetsClient() {
     if (!SPREADSHEET_ID) {
         throw new Error("Falta la variable de entorno GOOGLE_SHEETS_ID");
     }
+    const { google } = require("googleapis");
     // Firebase Admin SDK provee auth predeterminado con los permisos del Service Account
-    const auth = new googleapis_1.google.auth.GoogleAuth({
+    const auth = new google.auth.GoogleAuth({
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
-    sheetsClient = googleapis_1.google.sheets({ version: "v4", auth });
+    sheetsClient = google.sheets({ version: "v4", auth });
     return sheetsClient;
 }
 async function agregarFilaPost(postId, idMarca, tituloGancho, copy, hashtags, urlsImagenes, estado) {

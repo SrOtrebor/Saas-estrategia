@@ -48,9 +48,16 @@ interface TelegramMessage {
   entities?: Array<{ type: string; offset: number; length: number }>;
 }
 
+interface TelegramCallbackQuery {
+  id: string;
+  data: string;
+  message?: TelegramMessage;
+}
+
 interface TelegramUpdate {
   update_id: number;
   message?: TelegramMessage;
+  callback_query?: TelegramCallbackQuery;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -78,10 +85,55 @@ export const ingestaEntradaEspontanea = functions
     }
 
     const update = req.body as TelegramUpdate;
-    const message = update.message;
+    let message = update.message;
+    const callbackQuery = update.callback_query;
+
+    if (callbackQuery) {
+      const chatId = callbackQuery.message?.chat.id.toString();
+      if (!chatId) {
+        res.status(200).send("OK");
+        return;
+      }
+      
+      // Responder al callback query para quitar el "relojito" en Telegram
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      if (botToken) {
+        try {
+          await axios.post(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+            callback_query_id: callbackQuery.id,
+            text: "Expandiendo ideas en Google Docs...",
+          });
+        } catch (e) {}
+      }
+
+      if (callbackQuery.data === "aprobar_ideas") {
+        const textoOriginal = callbackQuery.message?.text || "";
+        const db = admin.firestore();
+        
+        // Identificar la marca
+        const marcasSnap = await db
+          .collection("marcas")
+          .where("credenciales_redes.telegram_chat_id", "==", chatId)
+          .limit(1)
+          .get();
+          
+        if (!marcasSnap.empty) {
+          const marca = marcasSnap.docs[0].data() as MarcaConfig;
+          await db.collection("cola_docs").add({
+            id_marca: marca.id_marca,
+            chat_id: chatId,
+            texto_ideas: textoOriginal,
+            created_at: Timestamp.now()
+          });
+          functions.logger.info(`[ingesta] Encolado en /cola_docs para ${marca.nombre_comercial}`);
+        }
+      }
+      res.status(200).send("OK");
+      return;
+    }
 
     if (!message) {
-      // Otros tipos de update (callback_query, etc.) — ignorar
+      // Otros tipos de update — ignorar
       res.status(200).send("OK");
       return;
     }

@@ -1,10 +1,7 @@
-import { google } from "googleapis";
-import * as admin from "firebase-admin";
-
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 
 // Cache del cliente autenticado
-let sheetsClient: ReturnType<typeof google.sheets> | null = null;
+let sheetsClient: any = null;
 
 async function getSheetsClient() {
   if (sheetsClient) return sheetsClient;
@@ -12,6 +9,8 @@ async function getSheetsClient() {
   if (!SPREADSHEET_ID) {
     throw new Error("Falta la variable de entorno GOOGLE_SHEETS_ID");
   }
+
+  const { google } = require("googleapis");
 
   // Firebase Admin SDK provee auth predeterminado con los permisos del Service Account
   const auth = new google.auth.GoogleAuth({

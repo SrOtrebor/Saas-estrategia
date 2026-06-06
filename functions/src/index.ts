@@ -32,3 +32,6 @@ export { generarContenidoEspontaneo } from "./functions/generarContenidoEspontan
 
 // Función 3: Publicador automático en Instagram (cada 15 min)
 export { publicadorContenidoInstagram } from "./functions/publicadorContenidoInstagram";
+
+// Función 4: Expansión de ideas y guardado en Google Docs (trigger /cola_docs)
+export { generarDocumentosEspontaneos } from "./functions/generarDocumentosEspontaneos";

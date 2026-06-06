@@ -43,7 +43,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.publicadorContenidoInstagram = exports.generarContenidoEspontaneo = exports.generarGrillaSemanal = exports.ingestaEntradaEspontanea = void 0;
+exports.generarDocumentosEspontaneos = exports.publicadorContenidoInstagram = exports.generarContenidoEspontaneo = exports.generarGrillaSemanal = exports.ingestaEntradaEspontanea = void 0;
 const admin = __importStar(require("firebase-admin"));
 // Inicializar Firebase Admin SDK (una sola vez, en el cold start)
 // En producción, las credenciales se infieren automáticamente del entorno.
@@ -65,4 +65,7 @@ Object.defineProperty(exports, "generarContenidoEspontaneo", { enumerable: true,
 // Función 3: Publicador automático en Instagram (cada 15 min)
 var publicadorContenidoInstagram_1 = require("./functions/publicadorContenidoInstagram");
 Object.defineProperty(exports, "publicadorContenidoInstagram", { enumerable: true, get: function () { return publicadorContenidoInstagram_1.publicadorContenidoInstagram; } });
+// Función 4: Expansión de ideas y guardado en Google Docs (trigger /cola_docs)
+var generarDocumentosEspontaneos_1 = require("./functions/generarDocumentosEspontaneos");
+Object.defineProperty(exports, "generarDocumentosEspontaneos", { enumerable: true, get: function () { return generarDocumentosEspontaneos_1.generarDocumentosEspontaneos; } });
 //# sourceMappingURL=index.js.map
