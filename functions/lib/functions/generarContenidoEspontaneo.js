@@ -413,19 +413,40 @@ bucket, fileName, buffer, intentos = 3) {
 // ═══════════════════════════════════════════════════════════════
 const enviarMensaje = async (chatId, text) => {
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const MAX_LENGTH = 4000;
-    // Dividir el mensaje si es muy largo
-    for (let i = 0; i < text.length; i += MAX_LENGTH) {
-        const chunk = text.substring(i, i + MAX_LENGTH);
+    const MAX_LENGTH = 3500;
+    // Dividir el mensaje por párrafos para no romper el Markdown
+    const paragraphs = text.split("\n\n");
+    let currentChunk = "";
+    for (const p of paragraphs) {
+        if ((currentChunk.length + p.length) > MAX_LENGTH) {
+            if (currentChunk.trim().length > 0) {
+                try {
+                    await axios_1.default.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                        chat_id: chatId,
+                        text: currentChunk.trim(),
+                        parse_mode: "Markdown",
+                    });
+                }
+                catch (err) {
+                    functions.logger.warn("[espontaneo] Error enviando chunk:", err);
+                }
+            }
+            currentChunk = p + "\n\n";
+        }
+        else {
+            currentChunk += p + "\n\n";
+        }
+    }
+    if (currentChunk.trim().length > 0) {
         try {
             await axios_1.default.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
                 chat_id: chatId,
-                text: chunk,
+                text: currentChunk.trim(),
                 parse_mode: "Markdown",
             });
         }
         catch (err) {
-            functions.logger.warn("[espontaneo] No se pudo enviar mensaje de confirmación:", err);
+            functions.logger.warn("[espontaneo] Error enviando chunk final:", err);
         }
     }
 };

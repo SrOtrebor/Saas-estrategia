@@ -13,7 +13,7 @@ El backend está construido de manera 100% serverless sobre **Firebase (Node.js 
 - **Motor de Imágenes (Fondos)**: Google Imagen 4 Fast
 - **Motor Gráfico (Composición)**: Sharp (Node.js) + SVG Overlay dinámico (Tarjetas Elegantes con Glassmorphism)
 - **Almacenamiento**: Firebase Storage (alberga logos y assets renderizados)
-- **Notificaciones e Input**: API de Telegram Bot (Webhooks + Chunker de mensajes largos)
+- **Notificaciones e Input**: API de Telegram Bot (Webhooks + Smart Chunker por párrafos para evitar cortes en el Markdown)
 
 ## 🔄 Flujo de Datos del Pipeline y Enrutamiento Inteligente
 
