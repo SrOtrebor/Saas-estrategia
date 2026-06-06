@@ -1,33 +1,28 @@
 # 🚀 SaaS Estrategias — Content AI Pipeline
 
 Plataforma de automatización y generación de contenido impulsada por IA, construida para **Estudio Precinto**. 
-El sistema permite que un operador envíe una nota de voz o mensaje de texto a través de Telegram, y en segundos, la IA procesa ese input para generar un carrusel de Instagram completo (Copy, Hashtags y Diseño Gráfico) aplicando la identidad visual, el logo y el tono de comunicación de la marca del cliente.
+El sistema permite que un operador envíe un mensaje a través de Telegram y obtenga ideas de contenido basadas en tendencias o genere automáticamente carruseles de Instagram completos (Copy, Hashtags y Diseño Gráfico) aplicando la identidad visual del cliente.
 
 ## 🏗️ Arquitectura y Tecnologías
 
 El backend está construido de manera 100% serverless sobre **Firebase (Node.js 22)**:
 
 - **Orquestador**: Firebase Cloud Functions (`generarContenidoEspontaneo`)
-- **Base de Datos**: Firestore (colecciones: `marcas`, `cola_ingesta`, `planificador_contenido`)
-- **Motor de Texto (Copywriting)**: Gemini 2.5 Flash
+- **Base de Datos**: Firestore (colecciones: `marcas`, `cola_ingesta`, `sesiones_bot`, `planificador_contenido`)
+- **Motor de Texto (Ideación y Copywriting)**: Gemini 2.5 Flash + **Google Search Grounding**
 - **Motor de Imágenes (Fondos)**: Google Imagen 4 Fast
-- **Motor Gráfico (Composición)**: Sharp (Node.js) + SVG Overlay dinámico
+- **Motor Gráfico (Composición)**: Sharp (Node.js) + SVG Overlay dinámico (Tarjetas Elegantes con Glassmorphism)
 - **Almacenamiento**: Firebase Storage (alberga logos y assets renderizados)
-- **Notificaciones e Input**: API de Telegram Bot (Webhooks)
-- **Histórico (Base de datos relacional/cliente)**: Google Sheets API
+- **Notificaciones e Input**: API de Telegram Bot (Webhooks + Chunker de mensajes largos)
 
-## 🔄 Flujo de Datos del Pipeline
+## 🔄 Flujo de Datos del Pipeline y Enrutamiento Inteligente
 
-1. **Telegram Webhook (`ingestaEntradaEspontanea`)**: Recibe mensajes del operador y los guarda en la colección `cola_ingesta` de Firestore indicando a qué marca pertenece.
-2. **Disparador Firestore (`generarContenidoEspontaneo`)**: Escucha los nuevos documentos en `cola_ingesta` e inicia el pipeline:
-   - Extrae los datos de la marca (`identidad_visual`, `comunicacion`).
-   - Envía el input del usuario a **Gemini 2.5 Flash** con un system prompt estructurado para generar copy, hashtags y textos cortos.
-   - Envía prompts a **Imagen 4** para generar fondos oscuros/profesionales de oficinas o infraestructura tecnológica sin texto.
-   - Pasa las imágenes por **Sharp**, superponiendo un SVG que contiene el texto de cada slide, un gradiente oscuro, la barra de progreso, y el **logo del cliente**.
-   - Sube los resultados a **Firebase Storage**.
-   - Guarda el resultado consolidado en la colección `planificador_contenido`.
-   - Registra una nueva fila en el **Google Sheets** histórico del cliente.
-   - Notifica por **Telegram** al operador con el carrusel y copy listos para revisar.
+1. **Telegram Webhook (`ingestaEntradaEspontanea`)**: Recibe mensajes, identifica al cliente y los guarda en `cola_ingesta` de Firestore. Envía un mensaje genérico de recepción ("Procesando...").
+2. **Disparador Firestore (`generarContenidoEspontaneo`)**: Lee la memoria del chat en `sesiones_bot` para dar contexto.
+3. **Enrutamiento por IA**: Se consulta a Gemini para decidir la intención del usuario:
+   - **IDEACION**: Si el usuario pide ideas o busca tendencias, Gemini utiliza **Google Search Grounding** para navegar la web y devolver ideas frescas, resúmenes de mercado y guiones formateados. El texto (si es muy largo) se corta en fragmentos de 4000 caracteres para eludir los límites de Telegram.
+   - **EJECUCION**: Si el usuario proporciona un texto definitivo y pide generar el carrusel, Gemini extrae los slides. Se llama a **Imagen 4** para los fondos abstractos de espacio negativo, y **Sharp** ensambla el SVG (glassmorphism/tarjeta elegante) con el logo del cliente.
+4. **Respuesta**: Telegram recibe el texto con las ideas o las imágenes finales del carrusel.
 
 ## ⚙️ Variables de Entorno y Configuración
 
@@ -42,8 +37,11 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_WEBHOOK_SECRET=secret_string_for_webhook_validation
 TELEGRAM_BOT_USERNAME=tu_bot_name
 
-# Google Sheets
+# Integraciones de Google (Próxima Etapa)
 GOOGLE_SHEETS_ID=your_spreadsheet_id
+GOOGLE_DRIVE_FOLDER_ID=PENDIENTE
+GOOGLE_CLIENT_EMAIL=PENDIENTE
+GOOGLE_PRIVATE_KEY=PENDIENTE
 
 # Meta Graph API (Próxima etapa)
 META_LONG_LIVED_TOKEN=PENDIENTE
@@ -58,46 +56,19 @@ Para subir cualquier cambio al código fuente, se utiliza Firebase CLI:
 cd functions
 npm run build
 
-# Desplegar la función principal a Google Cloud
-firebase deploy --only "functions:generarContenidoEspontaneo"
-firebase deploy --only "functions:ingestaEntradaEspontanea"
+# Desplegar las funciones a Google Cloud
+firebase deploy --only functions
 ```
-
-> **Aclaración sobre Permisos**: La función `ingestaEntradaEspontanea` (el webhook de Telegram) necesita permisos públicos en Google Cloud IAM para poder recibir los POST requests de Telegram. El rol necesario es `Cloud Functions Invoker` para el principal `allUsers`.
 
 ## 🏢 Cómo dar de alta un nuevo cliente (Tenant)
 
-La arquitectura es "Multi-tenant". Para configurar un nuevo cliente, se debe crear un documento en la colección `marcas` de Firestore con el `id_marca`.
-
-**Ejemplo de estructura de marca:**
-```json
-{
-  "nombre_comercial": "Estudio Precinto",
-  "datos_negocio": {
-    "rubro": "Consultoría operativa y software a medida",
-    "publico_objetivo": "Dueños de negocios...",
-    "propuesta_valor": "Mapea y elimina agujeros negros operativos..."
-  },
-  "comunicacion": {
-    "tono_de_voz": "Directo, ingeniería, Orden y firmeza.",
-    "pilares_contenido": ["Casos de éxito", "Educación", "Filosofía"]
-  },
-  "identidad_visual": {
-    "color_primario_hex": "#0E132B",
-    "color_secundario_hex": "#39506B",
-    "logo_url": "https://storage.googleapis.com/.../logofull.svg"
-  },
-  "credenciales_redes": {
-    "telegram_chat_id": "677028989"
-  }
-}
-```
+La arquitectura es "Multi-tenant". Para configurar un nuevo cliente, se debe crear un documento en la colección `marcas` de Firestore con el `id_marca` siendo igual a su `telegram_chat_id` para enrutar el bot automáticamente.
 
 ## 🗺️ Roadmap (Próximos Pasos)
 
-1. **[PENDIENTE] PWA Tinder de Aprobación**: Interfaz web mobile-first donde el cliente puede hacer "swipe" (deslizar) para Aprobar o Rechazar el contenido generado.
-2. **[PENDIENTE] Publicador Instagram API**: Función que, al aprobar un posteo en la PWA, inyecte automáticamente el carrusel en la cuenta de Instagram usando Meta Graph API.
-3. **[PENDIENTE] Hardening de Producción**: Alertas de Cloud Monitoring, Secrets Manager, y Reglas de Seguridad en Firestore/Storage.
+1. **[PENDIENTE] Integración Google Docs / Drive**: El bot podrá crear automáticamente un documento de Google Docs ordenado en una carpeta específica de Drive cuando se apruebe una de las ideas/guiones generados en la fase de Ideación.
+2. **[PENDIENTE] Publicador Instagram API**: Función que inyecte automáticamente el carrusel en la cuenta de Instagram usando Meta Graph API.
+3. **[PAUSADO] Dashboard Admin Visual**: Un formulario web integrado en el dashboard del cliente para dar de alta nuevas empresas fácilmente sin tocar la base de datos (Pausado a favor de pulir el core).
 
 ---
 *Diseñado bajo la filosofía: Orden y Firmeza.*

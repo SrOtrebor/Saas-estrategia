@@ -156,9 +156,7 @@ export const ingestaEntradaEspontanea = functions
       // ─── Paso 4: Confirmación al usuario ────────────────────
       await enviarMensaje(
         chatId,
-        `✅ *¡Recibido!* Estoy generando el contenido para *${marca.nombre_comercial}*.\n\n` +
-        `📝 *Input:* "${contenidoRaw.substring(0, 100)}${contenidoRaw.length > 100 ? "..." : ""}"\n\n` +
-        `🤖 Gemini + Imagen 4 están trabajando. En unos segundos te mando el carrusel listo para revisar.`
+        `✅ *Recibido.* Procesando tu solicitud... 🧠`
       );
 
       res.status(200).send("OK");

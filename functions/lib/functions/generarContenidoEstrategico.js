@@ -50,12 +50,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generarContenidoEspontaneo = exports.generarGrillaSemanal = void 0;
+exports.generarGrillaSemanal = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-admin/firestore");
 const gemini_1 = require("../lib/gemini");
 const imageGenerator_1 = require("../lib/imageGenerator");
+const googleSheets_1 = require("../lib/googleSheets");
 // ═══════════════════════════════════════════════════════════════
 // TRIGGER A: Scheduler — Lunes 8:00 AM (zona UTC-3 = 11:00 UTC)
 // ═══════════════════════════════════════════════════════════════
@@ -85,33 +86,7 @@ exports.generarGrillaSemanal = functions
     await Promise.all(promesas);
     functions.logger.info("[generarGrillaSemanal] Grilla semanal generada para todas las marcas.");
 });
-// ═══════════════════════════════════════════════════════════════
-// TRIGGER B: Firestore OnCreate — Input urgente desde la cola
-// ═══════════════════════════════════════════════════════════════
-exports.generarContenidoEspontaneo = functions
-    .runWith({
-    timeoutSeconds: 300,
-    memory: "512MB",
-})
-    .firestore.document("cola_ingesta/{ingestaId}")
-    .onCreate(async (snap, _context) => {
-    const ingesta = snap.data();
-    functions.logger.info(`[generarContenidoEspontaneo] Procesando ingesta para marca: ${ingesta.id_marca}`);
-    const db = admin.firestore();
-    const marcaDoc = await db
-        .collection("marcas")
-        .doc(ingesta.id_marca)
-        .get();
-    if (!marcaDoc.exists) {
-        functions.logger.error(`[generarContenidoEspontaneo] Marca no encontrada: ${ingesta.id_marca}`);
-        return;
-    }
-    const marca = marcaDoc.data();
-    await generarYGuardarContenido(marca, "input_espontaneo", ingesta.contenido_raw);
-    // Eliminar el documento de la cola una vez procesado
-    await snap.ref.delete();
-    functions.logger.info(`[generarContenidoEspontaneo] Ingesta procesada y eliminada de la cola.`);
-});
+// (La función generarContenidoEspontaneo fue movida a su propio archivo)
 // ═══════════════════════════════════════════════════════════════
 // FUNCIÓN CORE: generarYGuardarContenido
 // Esta función contiene toda la lógica de negocio.
@@ -179,6 +154,8 @@ async function generarYGuardarContenido(marca, origen, contextoAdicional) {
     };
     const docRef = await db.collection("planificador_contenido").add(nuevoPost);
     functions.logger.info(`[generarContenido] Post guardado en Firestore. ID: ${docRef.id} | Marca: ${marca.nombre_comercial}`);
+    // ─── PASO 6: Registrar en Google Sheets ──────────────────────
+    await (0, googleSheets_1.agregarFilaPost)(docRef.id, marca.id_marca, iaResponse.titulo_gancho, iaResponse.copy_instagram, iaResponse.hashtags || "", assetsLinks, "PENDIENTE");
 }
 // ═══════════════════════════════════════════════════════════════
 // HELPER: construirPrompt

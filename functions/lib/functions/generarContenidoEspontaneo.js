@@ -71,48 +71,73 @@ exports.generarContenidoEspontaneo = functions
     const ingesta = snap.data();
     functions.logger.info(`[espontaneo] Procesando ingesta ${ingestaId} para marca ${ingesta.id_marca}`);
     const db = admin.firestore();
-    // ─── Paso 1: Obtener config de la marca ──────────────────
+    // ─── Paso 1: Obtener config de la marca y memoria de chat ──
     const marcaDoc = await db.collection("marcas").doc(ingesta.id_marca).get();
-    if (!marcaDoc.exists) {
-        functions.logger.error(`[espontaneo] Marca ${ingesta.id_marca} no encontrada.`);
+    if (!marcaDoc.exists)
         return;
-    }
     const marca = marcaDoc.data();
     const chatId = marca.credenciales_redes?.telegram_chat_id;
-    // ─── Paso 2: Generar copy con Gemini 2.5 Flash ───────────
-    functions.logger.info("[espontaneo] Generando copy con Gemini...");
+    if (!chatId)
+        return;
+    const sesionesRef = db.collection("sesiones_bot").doc(chatId);
+    const sesionSnap = await sesionesRef.get();
+    let historia = sesionSnap.exists ? sesionSnap.data()?.historia || [] : [];
+    // ─── Paso 2: Generar respuesta con Gemini 2.5 Flash ────────
+    functions.logger.info("[espontaneo] Consultando a Gemini con Google Grounding...");
     const ai = new genai_1.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const prompt = construirPrompt(marca, ingesta);
+    // Agregar mensaje actual al historial temporalmente para el prompt
+    const prompt = construirPromptBot(marca, ingesta.contenido_raw, historia);
     const geminiResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: [{ parts: [{ text: prompt }] }],
-        config: { responseMimeType: "application/json" },
+        config: {
+            // No se puede usar responseMimeType: "application/json" junto con googleSearch
+            tools: [{ googleSearch: {} }]
+        },
     });
-    let contenidoIA;
+    let IA;
     try {
-        contenidoIA = JSON.parse(geminiResponse.text ?? "{}");
+        let rawText = geminiResponse.text ?? "{}";
+        // Limpiar markdown si Gemini devuelve ```json ... ```
+        rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        IA = JSON.parse(rawText);
     }
-    catch {
-        functions.logger.error("[espontaneo] Error parseando JSON de Gemini:", geminiResponse.text);
+    catch (err) {
+        functions.logger.error("Error parseando JSON de Gemini. Raw text:", geminiResponse.text);
         throw new Error("Respuesta de Gemini no es JSON válido");
     }
-    functions.logger.info(`[espontaneo] Copy generado: "${contenidoIA.titulo_gancho}"`);
-    // ─── Paso 3: Generar slides (fondo IA + overlay SVG) ─────
+    // Actualizar historial
+    historia.push({ rol: "usuario", texto: ingesta.contenido_raw });
+    historia.push({ rol: "asistente", texto: IA.respuesta_texto || "Ejecutando carrusel..." });
+    if (historia.length > 8)
+        historia = historia.slice(-8); // Guardar últimos 8 mensajes
+    await sesionesRef.set({ historia });
+    // ─── Paso 3: Enrutar según Intención ───────────────────────
+    if (IA.intencion === "IDEACION") {
+        functions.logger.info(`[espontaneo] Intención: IDEACION. Enviando mensaje.`);
+        await enviarMensaje(chatId, IA.respuesta_texto || "Aquí tienes algunas ideas...");
+        await snap.ref.delete(); // Limpiar cola
+        return;
+    }
+    // ─── MODO EJECUCIÓN (Generar Carrusel) ─────────────────────
+    functions.logger.info(`[espontaneo] Intención: EJECUCION. Generando carrusel...`);
+    const contenidoIA = IA.carrusel_json;
+    if (!contenidoIA)
+        throw new Error("No hay carrusel_json en la respuesta de ejecución.");
+    // Avisar por Telegram que empezó la renderización
+    await enviarMensaje(chatId, "🎨 *Idea seleccionada.* Renderizando imágenes e inyectando textos... Esto puede demorar unos segundos.");
     const slides = contenidoIA.textos_capas_graficas ?? [contenidoIA.titulo_gancho];
     const totalSlides = Math.min(slides.length, 7);
     const imageUrls = [];
     for (let i = 0; i < totalSlides; i++) {
-        functions.logger.info(`[espontaneo] Generando slide ${i + 1}/${totalSlides}...`);
         const fondoBuffer = await generarFondoImagen4(ai, generarPromptFondo(slides[i], marca.datos_negocio.rubro));
         const slideBuffer = await componerSlide(fondoBuffer, slides[i], i + 1, totalSlides, marca.identidad_visual.color_primario_hex, marca.nombre_comercial, marca.identidad_visual.logo_url);
-        // Subir a Firebase Storage con reintentos
         const bucket = admin.storage().bucket();
         const fileName = `posts/${ingesta.id_marca}/${ingestaId}/slide_${i + 1}.png`;
         const publicUrl = await subirConReintentos(bucket, fileName, slideBuffer);
         imageUrls.push(publicUrl);
-        functions.logger.info(`[espontaneo] Slide ${i + 1} subido: ${publicUrl}`);
     }
-    // ─── Paso 4: Guardar en planificador_contenido ───────────
+    // Guardar en planificador_contenido
     const ahora = firestore_1.Timestamp.now();
     const post = {
         id_marca: ingesta.id_marca,
@@ -131,64 +156,75 @@ exports.generarContenidoEspontaneo = functions
         updated_at: ahora,
     };
     const postRef = await db.collection("planificador_contenido").add(post);
-    functions.logger.info(`[espontaneo] Post guardado: /planificador_contenido/${postRef.id}`);
-    // ─── Paso 4.5: Registrar en Google Sheets ────────────────
+    // Google Sheets
     await (0, googleSheets_1.agregarFilaPost)(postRef.id, ingesta.id_marca, contenidoIA.titulo_gancho, contenidoIA.copy_instagram, contenidoIA.hashtags || "", imageUrls, "PENDIENTE");
-    // ─── Paso 5: Enviar resultado a Telegram ─────────────────
-    if (chatId) {
-        await enviarCarruselTelegram(chatId, contenidoIA, imageUrls, postRef.id);
-    }
-    functions.logger.info(`[espontaneo] ✅ Proceso completo para ingesta ${ingestaId}`);
+    // Enviar carrusel a Telegram
+    await enviarCarruselTelegram(chatId, contenidoIA, imageUrls, postRef.id);
+    await snap.ref.delete(); // Limpiar cola
+    functions.logger.info(`[espontaneo] ✅ Proceso de ejecución completo.`);
 });
 // ═══════════════════════════════════════════════════════════════
 // HELPERS — Generación de contenido
 // ═══════════════════════════════════════════════════════════════
-function construirPrompt(marca, ingesta) {
-    return `Sos el estratega de contenido de ${marca.nombre_comercial}, una empresa de ${marca.datos_negocio.rubro}.
+function construirPromptBot(marca, inputUsuario, historia) {
+    const historialTexto = historia.length > 0
+        ? "\nHISTORIAL RECIENTE DE LA CONVERSACIÓN:\n" + historia.map(h => `${h.rol.toUpperCase()}: ${h.texto}`).join("\n")
+        : "\n[No hay historial reciente]";
+    return `Sos un COPYWRITER SENIOR y ESTRATEGA DE MARKETING para la marca ${marca.nombre_comercial} (Rubro: ${marca.datos_negocio.rubro}).
+Tu objetivo es ayudar al usuario a investigar tendencias, idear guiones y ejecutar carruseles gráficos.
 
 IDENTIDAD DE MARCA:
-- Público objetivo: ${marca.datos_negocio.publico_objetivo}
-- Propuesta de valor: ${marca.datos_negocio.propuesta_valor}
-- Tono de voz: ${marca.comunicacion.tono_de_voz}
-- Pilares de contenido: ${marca.comunicacion.pilares_contenido.join(", ")}
+- Público: ${marca.datos_negocio.publico_objetivo}
+- Tono: ${marca.comunicacion.tono_de_voz}
+- Pilares: ${marca.comunicacion.pilares_contenido.join(", ")}
 
-INPUT DEL CLIENTE (tipo: ${ingesta.tipo}):
-"${ingesta.contenido_raw}"
+Tenés DOS MODOS de operación (elegí el correcto según el input):
 
-TAREA: Generá el contenido de un carrusel de Instagram de 3 slides basado en ese input.
+MODO 1: IDEACIÓN (Búsqueda y Propuestas)
+Si el usuario te pide tendencias, ideas, de qué hablar, o simplemente te cuenta una idea por arriba:
+- USÁ GOOGLE SEARCH para investigar las tendencias actuales de hoy sobre el tema o rubro.
+- Devolvé intencion: "IDEACION".
+- En respuesta_texto, escribile en Markdown:
+  1) Breve resumen de las 2 tendencias actuales reales (basadas en tu búsqueda).
+  2) 2 Guiones cortos para Reels listos para grabar (con Hook, Retención y CTA).
+  3) 2 Ideas conceptuales para Carruseles.
 
-REGLAS CRÍTICAS para textos_capas_graficas:
-- Exactamente 3 textos, uno por slide
-- Cada texto: MÁXIMO 5 palabras. Conciso, directo, impactante.
-- NO uses el nombre del rubro como texto de slide
-- NO uses palabras genéricas como "regalá", "compartí", "seguinos"
-- Usá el tono y las analogías de la marca (ingeniería, estructura, sistemas)
-- El slide 3 SIEMPRE termina con: "Orden y firmeza."
+MODO 2: EJECUCIÓN (Generar Carrusel Final)
+Si el usuario te dice explícitamente "Armá el carrusel de la idea 2", "Hacé el carrusel sobre X", o te da un texto directo para diseñar:
+- Devolvé intencion: "EJECUCION".
+- En carrusel_json, escribí el contenido final como Copywriter de élite usando frameworks como AIDA o PAS. NO repitas el input crudo. Expandilo con creatividad.
 
-Respondé SOLO con este JSON (sin markdown, sin explicaciones):
+${historialTexto}
+
+INPUT DEL USUARIO AHORA:
+"${inputUsuario}"
+
+Respondé SOLO con este JSON estricto (sin markdown de json):
 {
-  "titulo_gancho": "Frase gancho de máx 7 palabras, estilo ${marca.nombre_comercial}",
-  "copy_instagram": "Caption profesional, 3-4 párrafos cortos con emojis estratégicos, CTA directo al final. Tono: ${marca.comunicacion.tono_de_voz}",
-  "hashtags": "#hashtag1 #hashtag2 ... (mínimo 15 hashtags del sector)",
-  "textos_capas_graficas": [
-    "Máx 5 palabras. Gancho.",
-    "Máx 5 palabras. Beneficio clave.",
-    "Orden y firmeza."
-  ],
-  "fecha_hora_sugerida_iso": "${new Date().toISOString()}",
-  "formato_recomendado": "CARRUSEL"
+  "intencion": "IDEACION" o "EJECUCION",
+  "respuesta_texto": "Texto en markdown con las ideas y guiones (solo si es IDEACION)",
+  "carrusel_json": {
+    "titulo_gancho": "Gancho controversial o de alta curiosidad (máx 7 palabras)",
+    "copy_instagram": "Caption largo, persuasivo, con emojis y CTA claro. Mínimo 3 párrafos.",
+    "hashtags": "#hashtag1 #hashtag2 ... (mínimo 15 estratégicos)",
+    "textos_capas_graficas": [
+      "Slide 1: Máx 5 palabras. Gancho directo.",
+      "Slide 2: Máx 5 palabras. Desarrollo/Beneficio.",
+      "Slide 3: Orden y firmeza."
+    ],
+    "fecha_hora_sugerida_iso": "${new Date().toISOString()}",
+    "formato_recomendado": "CARRUSEL"
+  }
 }`;
 }
 function generarPromptFondo(_textoSlide, _rubro) {
-    // Prompt genérico de estudio/tecnología — sin incluir texto del slide
-    // para evitar que Imagen 4 lo renderice en la imagen
-    return ("Dark cinematic professional background photograph. " +
-        "Modern corporate office at night, architectural precision, dark navy and steel blue tones, " +
-        "dramatic lighting, clean minimalist workspace, glass and concrete textures, " +
-        "strategic business environment. " +
-        "IMPORTANT: absolutely zero text, zero words, zero letters, zero numbers, " +
-        "zero typography anywhere in the image. No human faces. No food. " +
-        "Pure background only. Photorealistic, editorial quality, 1:1 square format.");
+    return ("A stunning, highly aesthetic background photograph for a luxury corporate brand. " +
+        "Deep rich dark tones (navy, charcoal, subtle steel blue), architectural minimalism, " +
+        "beautiful studio lighting, moody atmosphere, subtle gradients. " +
+        "IMPORTANT: Keep the center almost completely empty and clean (abundant negative space) " +
+        "so text can be easily read on top. " +
+        "ABSOLUTELY ZERO TEXT, zero typography, zero letters, zero numbers. " +
+        "No faces. Photorealistic, 8k resolution, 1:1 square format.");
 }
 async function generarFondoImagen4(ai, prompt) {
     try {
@@ -236,52 +272,65 @@ function dividirTexto(texto, maxChars) {
 }
 async function componerSlide(fondoBuffer, texto, nSlide, totalSlides, colorPrimario, nombreMarca, logoUrl) {
     const fondo = await (0, sharp_1.default)(fondoBuffer).resize(1080, 1080, { fit: "cover" }).toBuffer();
-    const lineas = dividirTexto(texto, 16);
-    const y0 = 490, lh = 95;
+    const lineas = dividirTexto(texto, 15);
+    const lh = 85;
     const lineaCount = lineas.length;
-    // Backing rect detrás del texto (más confiable que feDropShadow en libvips)
-    const backingY = y0 - 65;
-    const backingH = lineaCount * lh + 50;
+    // DIMENSIONES DE LA "TARJETA ELEGANTE"
+    const cardW = 900;
+    const cardH = lineaCount * lh + 140;
+    const cardX = (1080 - cardW) / 2;
+    const cardY = (1080 - cardH) / 2 - 20; // Ligeramente por encima del centro
+    const y0 = cardY + 90; // Posición de la primera línea de texto dentro de la tarjeta
     const textoSVG = lineas.map((l, i) => `<text x="540" y="${y0 + i * lh}"
-      font-family="Georgia, serif" font-size="76" font-weight="bold"
-      fill="#FFFFFF" text-anchor="middle">${escaparXML(l)}</text>`).join("\n");
-    // Dots de navegación — encima del logo
+      font-family="Georgia, serif" font-size="68" font-weight="bold"
+      fill="#FFFFFF" text-anchor="middle" letter-spacing="1">${escaparXML(l)}</text>`).join("\n");
+    // Dots de navegación — centrados abajo
     const puntos = Array.from({ length: totalSlides }, (_, i) => {
         const cx = 540 - ((totalSlides - 1) * 26) / 2 + i * 26;
-        return `<circle cx="${cx}" cy="960" r="${i === nSlide - 1 ? 9 : 5}"
-      fill="#FFF" fill-opacity="${i === nSlide - 1 ? 1 : 0.5}" />`;
+        return `<circle cx="${cx}" cy="960" r="${i === nSlide - 1 ? 8 : 4}"
+      fill="#FFF" fill-opacity="${i === nSlide - 1 ? 1 : 0.4}" />`;
     }).join("\n");
-    // Si no hay logo real, el nombre de marca como texto fallback (centrado)
+    // Marca fallback (solo si no hay logo)
     const tieneLogoReal = logoUrl && !logoUrl.includes("placeholder") && !logoUrl.includes("LOGO");
     const marcaFallback = tieneLogoReal
         ? ""
-        : `<text x="540" y="1032" font-family="Arial, sans-serif" font-size="26" font-weight="700"
-        fill="#FFF" fill-opacity="0.90" letter-spacing="3" text-anchor="middle"
+        : `<text x="540" y="1032" font-family="Arial, sans-serif" font-size="24" font-weight="600"
+        fill="#FFF" fill-opacity="0.85" letter-spacing="4" text-anchor="middle"
         >${escaparXML(nombreMarca.toUpperCase())}</text>`;
     const overlay = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="1080" height="1080" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
-      <stop offset="35%" stop-color="#000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0.88"/>
-    </linearGradient>
+    <!-- Filtro de sombra paralela sutil para la tarjeta -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="15" stdDeviation="25" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
   </defs>
-  <!-- Gradiente base -->
-  <rect width="1080" height="1080" fill="url(#grad)"/>
-  <!-- Barra de color primario arriba -->
-  <rect x="0" y="0" width="1080" height="10" fill="${colorPrimario}"/>
-  <!-- Contador de slides -->
-  <rect x="922" y="44" width="116" height="46" rx="23" fill="#000" fill-opacity="0.55"/>
-  <text x="980" y="76" font-family="Arial, sans-serif" font-size="22" font-weight="600"
-    fill="#FFF" text-anchor="middle">${nSlide}/${totalSlides}</text>
-  <!-- Backing rect semitransparente detrás del texto -->
-  <rect x="60" y="${backingY}" width="960" height="${backingH}" rx="10"
-    fill="#000000" fill-opacity="0.52"/>
+
+  <!-- Viñeteado radial suave -->
+  <rect width="1080" height="1080" fill="#000" fill-opacity="0.2"/>
+
+  <!-- Barra de color primario súper delgada arriba -->
+  <rect x="0" y="0" width="1080" height="6" fill="${colorPrimario}"/>
+
+  <!-- Contador de slides minimalista (top right) -->
+  <text x="1000" y="80" font-family="Arial, sans-serif" font-size="24" font-weight="500"
+    fill="#FFF" fill-opacity="0.6" text-anchor="end">${nSlide} / ${totalSlides}</text>
+
+  <!-- TARJETA ELEGANTE (Glass/Solid) -->
+  <rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="30"
+    fill="#0A0B10" fill-opacity="0.75" 
+    stroke="${colorPrimario}" stroke-width="2" stroke-opacity="0.8"
+    filter="url(#shadow)"/>
+
+  <!-- Decoración pequeña arriba del texto en la tarjeta -->
+  <rect x="510" y="${cardY + 35}" width="60" height="4" rx="2" fill="${colorPrimario}"/>
+
   <!-- Texto principal -->
   ${textoSVG}
-  <!-- Marca fallback (solo si no hay logo) -->
+
+  <!-- Marca fallback -->
   ${marcaFallback}
+
   <!-- Dots de navegación -->
   ${puntos}
 </svg>`;
@@ -362,6 +411,24 @@ bucket, fileName, buffer, intentos = 3) {
 // ═══════════════════════════════════════════════════════════════
 // HELPERS — Telegram
 // ═══════════════════════════════════════════════════════════════
+const enviarMensaje = async (chatId, text) => {
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const MAX_LENGTH = 4000;
+    // Dividir el mensaje si es muy largo
+    for (let i = 0; i < text.length; i += MAX_LENGTH) {
+        const chunk = text.substring(i, i + MAX_LENGTH);
+        try {
+            await axios_1.default.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                chat_id: chatId,
+                text: chunk,
+                parse_mode: "Markdown",
+            });
+        }
+        catch (err) {
+            functions.logger.warn("[espontaneo] No se pudo enviar mensaje de confirmación:", err);
+        }
+    }
+};
 async function enviarCarruselTelegram(chatId, contenido, imageUrls, postId) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken)
