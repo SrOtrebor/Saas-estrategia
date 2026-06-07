@@ -34,3 +34,5 @@ saas-estrategias-firebase-adminsdk-fbsvc-*.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+logs*.txt
+

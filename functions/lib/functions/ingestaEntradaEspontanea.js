@@ -95,7 +95,8 @@ exports.ingestaEntradaEspontanea = functions
             }
             catch (e) { }
         }
-        if (callbackQuery.data === "aprobar_ideas") {
+        if (callbackQuery.data && callbackQuery.data.startsWith("docs_")) {
+            const opcion = callbackQuery.data; // "docs_idea_1", "docs_idea_2", "docs_todas"
             const textoOriginal = callbackQuery.message?.text || "";
             const db = admin.firestore();
             // Identificar la marca
@@ -110,9 +111,10 @@ exports.ingestaEntradaEspontanea = functions
                     id_marca: marca.id_marca,
                     chat_id: chatId,
                     texto_ideas: textoOriginal,
+                    opcion: opcion,
                     created_at: firestore_1.Timestamp.now()
                 });
-                functions.logger.info(`[ingesta] Encolado en /cola_docs para ${marca.nombre_comercial}`);
+                functions.logger.info(`[ingesta] Encolado en /cola_docs para ${marca.nombre_comercial} con opción: ${opcion}`);
             }
         }
         res.status(200).send("OK");

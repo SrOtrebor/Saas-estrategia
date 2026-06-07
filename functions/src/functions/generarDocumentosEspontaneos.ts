@@ -13,6 +13,7 @@ export const generarDocumentosEspontaneos = functions
     const idMarca = docData.id_marca;
     const chatId = docData.chat_id;
     const textoIdeas = docData.texto_ideas;
+    const opcion = docData.opcion || "docs_todas";
 
     functions.logger.info(`[docs] Procesando expansión de ideas para marca ${idMarca}`);
 
@@ -23,13 +24,19 @@ export const generarDocumentosEspontaneos = functions
 
     // ─── Paso 1: Generar expansión con Gemini 2.5 Flash ────────
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    
+    let instruccionSeleccion = "Expande TODAS las ideas mencionadas en el texto.";
+    if (opcion === "docs_idea_1") instruccionSeleccion = "Filtra y expande ÚNICAMENTE la PRIMERA idea o viñeta mencionada en el texto. IGNORA la segunda idea y las demás.";
+    if (opcion === "docs_idea_2") instruccionSeleccion = "Filtra y expande ÚNICAMENTE la SEGUNDA idea o viñeta mencionada en el texto. IGNORA la primera idea y las demás.";
+
     const prompt = `Sos un COPYWRITER SENIOR y ESTRATEGA DE MARKETING para la marca ${marca.nombre_comercial} (Rubro: ${marca.datos_negocio.rubro}).
 
 El usuario ha aprobado las siguientes ideas/premisas resumidas:
 "${textoIdeas}"
 
 TU TAREA:
-Tomar estas premisas y expandirlas en guiones completos, detallados y listos para grabar o usar. 
+${instruccionSeleccion}
+Tomar la(s) premisa(s) seleccionada(s) y expandirla(s) en guiones completos, detallados y listos para grabar o usar. 
 Desarrolla el contenido de forma profesional, usando el tono de voz de la marca: ${marca.comunicacion.tono_de_voz}.
 Agrega estructuras claras (Hook, Retención, Llamado a la Acción).
 No devuelvas JSON, devuelve un texto en formato Markdown rico y estructurado.`;
@@ -66,13 +73,21 @@ No devuelvas JSON, devuelve un texto en formato Markdown rico y estructurado.`;
       }
 
       try {
+        // Sanitizamos el markdown del texto final por si contiene viñetas con asterisco suelto
+        let safeMensaje = mensajeFinal.replace(/(^|\n)\s*\*\s/g, "$1- ");
         await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           chat_id: chatId,
-          text: mensajeFinal,
+          text: safeMensaje,
           parse_mode: "Markdown",
         });
       } catch (e) {
-        functions.logger.warn("[docs] Error enviando link de Docs a Telegram:", e);
+        functions.logger.warn("[docs] Error enviando link de Docs a Telegram, intentando sin Markdown:", e);
+        try {
+          await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            chat_id: chatId,
+            text: `⚠️ Hubo un error de formato enviando el mensaje largo. Entrá a tu Google Drive para ver el documento creado, o revisá los logs de Firebase si falló.`,
+          });
+        } catch (e2) {}
       }
     }
 

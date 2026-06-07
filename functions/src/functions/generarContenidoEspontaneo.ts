@@ -29,7 +29,7 @@ import { agregarFilaPost } from "../lib/googleSheets";
 // ═══════════════════════════════════════════════════════════════
 
 export const generarContenidoEspontaneo = functions
-  .runWith({ timeoutSeconds: 300, memory: "1GB" })
+  .runWith({ timeoutSeconds: 300, memory: "2GB" })
   .firestore.document("cola_ingesta/{ingestaId}")
   .onCreate(async (snap, context) => {
     const ingestaId = context.params.ingestaId;
@@ -69,12 +69,22 @@ export const generarContenidoEspontaneo = functions
     let IA: { intencion: string; respuesta_texto?: string; carrusel_json?: ContenidoGeneradoIA };
     try {
       let rawText = geminiResponse.text ?? "{}";
-      // Limpiar markdown si Gemini devuelve ```json ... ```
-      rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+      // Intentar extraer JSON si Gemini agregó texto extra
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        rawText = jsonMatch[0];
+      }
       IA = JSON.parse(rawText);
     } catch (err) {
       functions.logger.error("Error parseando JSON de Gemini. Raw text:", geminiResponse.text);
-      throw new Error("Respuesta de Gemini no es JSON válido");
+      // Fallback a IDEACION si el usuario dio texto plano
+      if (geminiResponse.text && geminiResponse.text.includes("EJECUCION")) {
+         throw new Error("Respuesta de Gemini no es JSON válido para Ejecución");
+      }
+      IA = {
+        intencion: "IDEACION",
+        respuesta_texto: geminiResponse.text || "Hubo un error interpretando tu solicitud."
+      };
     }
 
     // Actualizar historial
@@ -87,7 +97,11 @@ export const generarContenidoEspontaneo = functions
     if (IA.intencion === "IDEACION") {
       functions.logger.info(`[espontaneo] Intención: IDEACION. Enviando mensaje.`);
       const replyMarkup = {
-        inline_keyboard: [[{ text: "💾 Desarrollar y guardar en Docs", callback_data: "aprobar_ideas" }]]
+        inline_keyboard: [
+          [{ text: "💡 Desarrollar Idea 1 en Docs", callback_data: "docs_idea_1" }],
+          [{ text: "💡 Desarrollar Idea 2 en Docs", callback_data: "docs_idea_2" }],
+          [{ text: "📚 Desarrollar TODAS en Docs", callback_data: "docs_todas" }]
+        ]
       };
       await enviarMensaje(chatId, IA.respuesta_texto || "Aquí tienes algunas ideas...", replyMarkup);
       await snap.ref.delete(); // Limpiar cola
@@ -106,26 +120,45 @@ export const generarContenidoEspontaneo = functions
     const totalSlides = Math.min(slides.length, 7);
     const imageUrls: string[] = [];
 
-    for (let i = 0; i < totalSlides; i++) {
-      const fondoBuffer = await generarFondoImagen4(
-        ai,
-        generarPromptFondo(slides[i], marca.datos_negocio.rubro)
-      );
+    // 1. Generar la plantilla HTML dinámica con Gemini
+    const plantillaHtml = await generarPlantillaHTML(ai, marca);
 
-      const slideBuffer = await componerSlide(
-        fondoBuffer,
-        slides[i],
-        i + 1,
-        totalSlides,
-        marca.identidad_visual.color_primario_hex,
-        marca.nombre_comercial,
-        marca.identidad_visual.logo_url
-      );
+    // 2. Levantar Puppeteer para renderizar (Versión Serverless)
+    const puppeteer = require("puppeteer-core");
+    const chromium = require("@sparticuz/chromium").default || require("@sparticuz/chromium");
+    
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
+    });
 
-      const bucket = admin.storage().bucket();
-      const fileName = `posts/${ingesta.id_marca}/${ingestaId}/slide_${i + 1}.png`;
-      const publicUrl = await subirConReintentos(bucket, fileName, slideBuffer);
-      imageUrls.push(publicUrl);
+    try {
+      for (let i = 0; i < totalSlides; i++) {
+        // Reemplazar marcadores en la plantilla
+        let textoHtml = slides[i].replace(/\n/g, "<br>");
+        const htmlPlaca = plantillaHtml
+          .replace(/\{\{TEXTO\}\}/g, textoHtml)
+          .replace(/\{\{SLIDE_ACTUAL\}\}/g, String(i + 1))
+          .replace(/\{\{SLIDE_TOTAL\}\}/g, String(totalSlides))
+          .replace(/\{\{LOGO_URL\}\}/g, marca.identidad_visual.logo_url || "");
+
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1080, height: 1080 });
+        await page.setContent(htmlPlaca, { waitUntil: "networkidle0" });
+        
+        const buffer = await page.screenshot({ type: "jpeg", quality: 90 });
+        await page.close();
+
+        const bucket = admin.storage().bucket();
+        const fileName = `posts/${ingesta.id_marca}/${ingestaId}/slide_${i + 1}.jpg`;
+        const publicUrl = await subirConReintentos(bucket, fileName, buffer as Buffer);
+        imageUrls.push(publicUrl);
+      }
+    } finally {
+      await browser.close();
     }
 
     // Guardar en planificador_contenido
@@ -204,7 +237,8 @@ ${historialTexto}
 INPUT DEL USUARIO AHORA:
 "${inputUsuario}"
 
-Respondé SOLO con este JSON estricto (sin markdown de json):
+REGLA CRÍTICA Y OBLIGATORIA: Tu respuesta DEBE ser ÚNICA y EXCLUSIVAMENTE un objeto JSON válido. NO escribas NADA fuera de las llaves { }. NO uses markdown de código.
+Estructura esperada:
 {
   "intencion": "IDEACION" o "EJECUCION",
   "respuesta_texto": "Texto en markdown con las ideas y guiones (solo si es IDEACION)",
@@ -223,199 +257,44 @@ Respondé SOLO con este JSON estricto (sin markdown de json):
 }`;
 }
 
-function generarPromptFondo(_textoSlide: string, _rubro: string): string {
-  return (
-    "A stunning, highly aesthetic background photograph for a luxury corporate brand. " +
-    "Deep rich dark tones (navy, charcoal, subtle steel blue), architectural minimalism, " +
-    "beautiful studio lighting, moody atmosphere, subtle gradients. " +
-    "IMPORTANT: Keep the center almost completely empty and clean (abundant negative space) " +
-    "so text can be easily read on top. " +
-    "ABSOLUTELY ZERO TEXT, zero typography, zero letters, zero numbers. " +
-    "No faces. Photorealistic, 8k resolution, 1:1 square format."
-  );
-}
+async function generarPlantillaHTML(ai: GoogleGenAI, marca: MarcaConfig): Promise<string> {
+  const prompt = `Actúa como un Diseñador Web y Gráfico Experto de élite.
+Tu tarea es inventar una plantilla HTML/CSS para un carrusel de Instagram (1080x1080 píxeles) para la marca "${marca.nombre_comercial}" (Rubro: ${marca.datos_negocio.rubro}).
 
-async function generarFondoImagen4(ai: GoogleGenAI, prompt: string): Promise<Buffer> {
+Identidad Visual:
+- Color Primario: ${marca.identidad_visual.color_primario_hex}
+- Usa Google Fonts modernas y limpias (ej: Montserrat, Inter, Playfair Display) cargadas via @import.
+
+Requisitos Técnicos Estrictos:
+1. El tamaño DEBE ser exactamente 1080x1080. Añade esto en el CSS:
+   body { width: 1080px; height: 1080px; margin: 0; padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #0d0d0d; color: #fff; font-family: 'Inter', sans-serif; }
+2. El diseño debe ser ESPECTACULAR, premium, estético y moderno. Usa gradientes sutiles, sombras suaves (glassmorphism), patrones geométricos hechos con CSS puro o fondos abstractos creados con degradados radiales.
+3. El diseño debe incluir los siguientes MARCADORES DE POSICIÓN EXACTOS (yo los reemplazaré en mi código backend por el texto real):
+   - {{TEXTO}} : El texto principal de la placa (debe ir muy grande, legible, en el centro o destacado).
+   - {{SLIDE_ACTUAL}} / {{SLIDE_TOTAL}} : El contador de placas, usualmente minimalista arriba a la derecha o abajo en el centro.
+   - {{LOGO_URL}} : Úsalo en un tag <img src="{{LOGO_URL}}" style="max-height: 80px; object-fit: contain;"> (usualmente centrado abajo).
+4. Usa layouts Flexbox o CSS Grid.
+5. NO uses imágenes externas (salvo el logo). Todo el arte y diseño debe ser CSS puro.
+
+Devuelve ÚNICAMENTE el código HTML completo (con CSS incrustado). Sin explicaciones, sin bloques de markdown de código (\`\`\`), solo el código crudo que empiece con <!DOCTYPE html>.`;
+
   try {
-    const response = await ai.models.generateImages({
-      model: "imagen-4.0-fast-generate-001",
-      prompt,
-      config: { numberOfImages: 1, outputMimeType: "image/jpeg", aspectRatio: "1:1" },
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ parts: [{ text: prompt }] }],
     });
-    const bytes = response.generatedImages?.[0]?.image?.imageBytes;
-    if (!bytes) throw new Error("Imagen vacía");
-    return Buffer.from(bytes, "base64");
+
+    let html = response.text || "";
+    // Limpiar markdown residual si Gemini no hace caso omiso
+    html = html.replace(/```html/gi, "").replace(/```/g, "").trim();
+    if (!html.startsWith("<!DOCTYPE") && !html.startsWith("<html")) {
+      html = "<!DOCTYPE html><html><head><style>body{background:#111;color:#fff;display:flex;align-items:center;justify-content:center;height:1080px;width:1080px;margin:0;font-family:sans-serif;}h1{font-size:80px;text-align:center;padding:100px;}</style></head><body><div><h1>{{TEXTO}}</h1></div></body></html>";
+    }
+    return html;
   } catch (err) {
-    functions.logger.warn("[espontaneo] Imagen 4 falló, usando fallback de color:", err);
-    // Fallback: fondo de color sólido
-    return sharp({
-      create: { width: 1080, height: 1080, channels: 3, background: { r: 40, g: 40, b: 50 } },
-    }).jpeg().toBuffer();
+    functions.logger.error("[espontaneo] Error generando plantilla HTML:", err);
+    throw new Error("No se pudo generar la plantilla HTML.");
   }
-}
-
-function escaparXML(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function dividirTexto(texto: string, maxChars: number): string[] {
-  const palabras = texto.split(" ");
-  const lineas: string[] = [];
-  let actual = "";
-  for (const p of palabras) {
-    if ((actual + " " + p).trim().length <= maxChars) {
-      actual = (actual + " " + p).trim();
-    } else {
-      if (actual) lineas.push(actual);
-      actual = p;
-    }
-  }
-  if (actual) lineas.push(actual);
-  return lineas;
-}
-
-async function componerSlide(
-  fondoBuffer: Buffer,
-  texto: string,
-  nSlide: number,
-  totalSlides: number,
-  colorPrimario: string,
-  nombreMarca: string,
-  logoUrl?: string
-): Promise<Buffer> {
-  const fondo = await sharp(fondoBuffer).resize(1080, 1080, { fit: "cover" }).toBuffer();
-
-  const lineas = dividirTexto(texto, 15);
-  const lh = 85;
-  const lineaCount = lineas.length;
-
-  // DIMENSIONES DE LA "TARJETA ELEGANTE"
-  const cardW = 900;
-  const cardH = lineaCount * lh + 140;
-  const cardX = (1080 - cardW) / 2;
-  const cardY = (1080 - cardH) / 2 - 20; // Ligeramente por encima del centro
-
-  const y0 = cardY + 90; // Posición de la primera línea de texto dentro de la tarjeta
-
-  const textoSVG = lineas.map((l, i) =>
-    `<text x="540" y="${y0 + i * lh}"
-      font-family="Georgia, serif" font-size="68" font-weight="bold"
-      fill="#FFFFFF" text-anchor="middle" letter-spacing="1">${escaparXML(l)}</text>`
-  ).join("\n");
-
-  // Dots de navegación — centrados abajo
-  const puntos = Array.from({ length: totalSlides }, (_, i) => {
-    const cx = 540 - ((totalSlides - 1) * 26) / 2 + i * 26;
-    return `<circle cx="${cx}" cy="960" r="${i === nSlide - 1 ? 8 : 4}"
-      fill="#FFF" fill-opacity="${i === nSlide - 1 ? 1 : 0.4}" />`;
-  }).join("\n");
-
-  // Marca fallback (solo si no hay logo)
-  const tieneLogoReal = logoUrl && !logoUrl.includes("placeholder") && !logoUrl.includes("LOGO");
-  const marcaFallback = tieneLogoReal
-    ? ""
-    : `<text x="540" y="1032" font-family="Arial, sans-serif" font-size="24" font-weight="600"
-        fill="#FFF" fill-opacity="0.85" letter-spacing="4" text-anchor="middle"
-        >${escaparXML(nombreMarca.toUpperCase())}</text>`;
-
-  const overlay = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="1080" height="1080" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <!-- Filtro de sombra paralela sutil para la tarjeta -->
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="15" stdDeviation="25" flood-color="#000" flood-opacity="0.6"/>
-    </filter>
-  </defs>
-
-  <!-- Viñeteado radial suave -->
-  <rect width="1080" height="1080" fill="#000" fill-opacity="0.2"/>
-
-  <!-- Barra de color primario súper delgada arriba -->
-  <rect x="0" y="0" width="1080" height="6" fill="${colorPrimario}"/>
-
-  <!-- Contador de slides minimalista (top right) -->
-  <text x="1000" y="80" font-family="Arial, sans-serif" font-size="24" font-weight="500"
-    fill="#FFF" fill-opacity="0.6" text-anchor="end">${nSlide} / ${totalSlides}</text>
-
-  <!-- TARJETA ELEGANTE (Glass/Solid) -->
-  <rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="30"
-    fill="#0A0B10" fill-opacity="0.75" 
-    stroke="${colorPrimario}" stroke-width="2" stroke-opacity="0.8"
-    filter="url(#shadow)"/>
-
-  <!-- Decoración pequeña arriba del texto en la tarjeta -->
-  <rect x="510" y="${cardY + 35}" width="60" height="4" rx="2" fill="${colorPrimario}"/>
-
-  <!-- Texto principal -->
-  ${textoSVG}
-
-  <!-- Marca fallback -->
-  ${marcaFallback}
-
-  <!-- Dots de navegación -->
-  ${puntos}
-</svg>`;
-
-  // Base: fondo + overlay SVG
-  let base = await sharp(fondo)
-    .composite([{ input: Buffer.from(overlay), top: 0, left: 0 }])
-    .toBuffer();
-
-  // ─── Logo centrado abajo ─────────────────────────────────────
-  if (tieneLogoReal) {
-    try {
-      const logoRes = await axios.get(logoUrl!, {
-        responseType: "arraybuffer",
-        timeout: 10000,
-      });
-      const logoRaw = Buffer.from(logoRes.data as ArrayBuffer);
-
-      // Redimensionar: máx 280px ancho, máx 100px alto
-      const logoResized = await sharp(logoRaw)
-        .resize(280, 100, { fit: "inside", withoutEnlargement: true })
-        .png()
-        .toBuffer();
-
-      const meta = await sharp(logoResized).metadata();
-      const logoW = meta.width ?? 280;
-      const logoH = meta.height ?? 100;
-
-      // Posición: centrado horizontal, y=990 (abajo, encima del borde)
-      const logoLeft = Math.round((1080 - logoW) / 2);
-      const logoTop  = 990 - logoH;
-
-      // Píldora semitransparente detrás del logo
-      const padX = 32, padY = 16;
-      const pillW = logoW + padX * 2;
-      const pillH = logoH + padY * 2;
-      const pillLeft = Math.round((1080 - pillW) / 2);
-      const pillTop  = logoTop - padY;
-      const rx = Math.round(pillH / 2);
-
-      const pill = Buffer.from(
-        `<svg width="${pillW}" height="${pillH}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="${pillW}" height="${pillH}" rx="${rx}" fill="#000000" fill-opacity="0.38"/>
-        </svg>`
-      );
-
-      base = await sharp(base)
-        .composite([
-          { input: pill,        top: pillTop,  left: pillLeft },
-          { input: logoResized, top: logoTop,  left: logoLeft },
-        ])
-        .toBuffer();
-
-      functions.logger.info(`[espontaneo] Logo superpuesto: ${logoW}x${logoH}px`);
-    } catch (err) {
-      functions.logger.warn("[espontaneo] No se pudo superponer el logo:", err);
-      // Continua sin logo — el nombre en texto ya está en el overlay
-    }
-  }
-
-  return sharp(base).png({ quality: 92 }).toBuffer();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -459,8 +338,14 @@ const enviarMensaje = async (chatId: string, text: string, replyMarkup?: any) =>
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const MAX_LENGTH = 3500;
   
+  // SANITIZACIÓN: Telegram usa Markdown (legacy) que se rompe si usamos asteriscos para listas
+  // Reemplazamos los asteriscos de inicio de lista por guiones:
+  let safeText = text.replace(/(^|\n)\s*\*\s/g, "$1- ");
+  // Reemplazamos asteriscos impares sueltos (muy complejo con regex perfecto, pero intentamos 
+  // asegurar que las negritas estén bien formateadas).
+  
   // Dividir el mensaje por párrafos para no romper el Markdown
-  const paragraphs = text.split("\n\n");
+  const paragraphs = safeText.split("\n\n");
   let currentChunk = "";
 
   for (let i = 0; i < paragraphs.length; i++) {
