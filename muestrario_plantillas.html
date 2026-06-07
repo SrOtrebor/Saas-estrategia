@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Muestrario de Plantillas - Estudio Precinto</title>
+<style>
+  body {
+    background-color: #e0e5ec;
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    justify-content: center;
+  }
+  .preview-box {
+    width: 500px; /* Escalado a la mitad para que entren en pantalla */
+    height: 500px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+  }
+  .preview-box iframe {
+    width: 1080px;
+    height: 1080px;
+    border: none;
+    transform: scale(0.4629); /* 500 / 1080 */
+    transform-origin: top left;
+  }
+  .label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<script>
+  const color = "#d4af37"; // Color dorado premium de ejemplo
+  const logo = "https://via.placeholder.com/150x50/ffffff/000000?text=LOGO";
+  const texto = `
+    <h2>ETAPA 1 - EL PROBLEMA</h2>
+    <h1>EL CAOS<br>DE TU MARCA</h1>
+    <p>Este es el párrafo profundo donde explicamos el dolor.</p>
+    <ul>
+      <li>Síntoma número uno detallado.</li>
+      <li>Síntoma número dos con intención.</li>
+    </ul>
+    <div class="highlight">Remate final: Por qué esto es una trampa.</div>
+  `;
+
+  const plantillas = [
+    // VARIANTE 1
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #1a2235 0%, #0b0f19 100%); color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 40px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: center; align-items: center; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { background-color: ${color}40; color: ${color}; padding: 8px 20px; border-radius: 50px; font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; text-align: center; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; text-align: center; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; text-align: left; display: inline-block; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '➤'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, transparent 100%); border-left: 6px solid ${color}; padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; text-align: left; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 2
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #050505; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 0px; border-left: 15px solid ${color}; background-color: #0d1117; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { background-color: ${color}20; color: ${color}; padding: 8px 0px; border-radius: 0px; border-bottom: 3px solid ${color}; font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '■'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-left: 6px solid ${color}; padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 3
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #111418; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-top: 15px solid ${color}; background: transparent; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: space-between; margin-top: 15px; flex-shrink: 0; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;}
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { color: ${color}; font-size: 22px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; letter-spacing: 2px; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '→'; position: absolute; left: 0; color: ${color}; font-weight: bold;}
+      .highlight { background: ${color}15; border-radius: 10px; padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; text-align: left; border: 1px solid ${color}40; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 4
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #16181c; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 20px; background: #16181c; box-shadow:  15px 15px 30px #0b0c0e, -15px -15px 30px #21242a; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { background-color: ${color}10; border: 1px solid ${color}30; color: ${color}; padding: 8px 20px; border-radius: 10px; font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '•'; position: absolute; left: 0; color: ${color}; font-size: 35px; line-height: 28px; }
+      .highlight { background: #16181c; box-shadow: inset 5px 5px 10px #0b0c0e, inset -5px -5px 10px #21242a; border-left: 6px solid ${color}; padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 5
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #050505; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 0 0 20px 20px; border-bottom: 12px solid ${color}; background: linear-gradient(180deg, #0a0a0a 0%, #151515 100%); box-shadow: 0 30px 60px ${color}20; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-end; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { color: #fff; background: ${color}; padding: 8px 30px 8px 50px; margin-left: -50px; border-radius: 0 20px 20px 0; font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #ccc; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '✓'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: transparent; border-top: 1px dashed ${color}50; padding: 25px 0 0 0; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 6
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #080808; background-image: radial-gradient(rgba(255, 255, 255, 0.1) 2px, transparent 2px); background-size: 30px 30px; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 0; border: 2px solid ${color}; background-color: #000; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { border: 2px solid ${color}; color: ${color}; padding: 8px 20px; font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '►'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: ${color}; color: #000; padding: 20px 30px; font-size: 26px; font-weight: 900; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 7
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #0b0f19; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); transform: translate(-10px, -10px); box-shadow: 20px 20px 0px ${color}20; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { color: ${color}; font-size: 20px; font-weight: 700; border-left: 4px solid ${color}; padding-left: 15px; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '━'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: rgba(255,255,255,0.02); border: 1px solid ${color}40; padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+
+    // VARIANTE 8
+    `<!DOCTYPE html><html><head><style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #181c25 50%, #0a0d14 50%); color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 20px; background: rgba(20, 25, 35, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.5; }
+      h2 { background-color: #fff; color: #000; padding: 8px 20px; border-radius: 5px; font-size: 20px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '◆'; position: absolute; left: 0; color: ${color}; font-size: 22px; }
+      .highlight { background: linear-gradient(90deg, ${color} 0%, transparent 100%); padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`
+  ];
+
+  const container = document.body;
+  
+  plantillas.forEach((htmlContent, index) => {
+    const box = document.createElement('div');
+    box.className = 'preview-box';
+    
+    const iframe = document.createElement('iframe');
+    iframe.srcdoc = htmlContent;
+    
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.innerText = 'Variante ' + (index + 1);
+
+    box.appendChild(iframe);
+    box.appendChild(label);
+    container.appendChild(box);
+  });
+</script>
+</body>
+</html>

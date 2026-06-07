@@ -159,8 +159,12 @@ exports.generarContenidoEspontaneo = functions
     });
     try {
         for (let i = 0; i < totalSlides; i++) {
-            // Reemplazar marcadores en la plantilla
-            let textoHtml = slides[i].replace(/\n/g, "<br>");
+            // Reemplazar marcadores en la plantilla (no cambiamos \n a <br> si ya es HTML, 
+            // pero lo dejamos para compatibilidad con textos legacy o que no tengan block tags)
+            let textoHtml = slides[i];
+            if (!textoHtml.includes("<h") && !textoHtml.includes("<p")) {
+                textoHtml = textoHtml.replace(/\n/g, "<br>");
+            }
             const htmlPlaca = plantillaHtml
                 .replace(/\{\{TEXTO\}\}/g, textoHtml)
                 .replace(/\{\{SLIDE_ACTUAL\}\}/g, String(i + 1))
@@ -210,8 +214,9 @@ exports.generarContenidoEspontaneo = functions
 // HELPERS — Generación de contenido
 // ═══════════════════════════════════════════════════════════════
 function construirPromptBot(marca, inputUsuario, historia) {
-    const historialTexto = historia.length > 0
-        ? "\nHISTORIAL RECIENTE DE LA CONVERSACIÓN:\n" + historia.map(h => `${h.rol.toUpperCase()}: ${h.texto}`).join("\n")
+    const historialValido = historia.filter(h => !h.texto.includes('{{') && !h.texto.includes(']]'));
+    const historialTexto = historialValido.length > 0
+        ? "\nHISTORIAL RECIENTE DE LA CONVERSACIÓN:\n" + historialValido.map(h => `${h.rol.toUpperCase()}: ${h.texto}`).join("\n")
         : "\n[No hay historial reciente]";
     return `Sos un COPYWRITER SENIOR y ESTRATEGA DE MARKETING para la marca ${marca.nombre_comercial} (Rubro: ${marca.datos_negocio.rubro}).
 Tu objetivo es ayudar al usuario a investigar tendencias, idear guiones y ejecutar carruseles gráficos.
@@ -243,6 +248,8 @@ INPUT DEL USUARIO AHORA:
 "${inputUsuario}"
 
 REGLA CRÍTICA Y OBLIGATORIA: Tu respuesta DEBE ser ÚNICA y EXCLUSIVAMENTE un objeto JSON válido. NO escribas NADA fuera de las llaves { }. NO uses markdown de código.
+IMPORTANTE: NO uses comillas dobles ("") dentro de los textos, usa comillas simples ('') o escápalas correctamente (\") para evitar romper el JSON.
+PROHIBICIÓN ESTRICTA: NUNCA, BAJO NINGUNA CIRCUNSTANCIA, uses placeholders (como {{TITULO}}, [TEXTO AQUÍ] o similares). DEBES redactar el contenido final, persuasivo y definitivo, listo para publicarse. Si la idea es corta, tú debes expandirla e inventar el copy completo.
 Estructura esperada:
 {
   "intencion": "IDEACION" o "EJECUCION",
@@ -252,52 +259,175 @@ Estructura esperada:
     "copy_instagram": "Caption largo, persuasivo, con emojis y CTA claro. Mínimo 3 párrafos.",
     "hashtags": "#hashtag1 #hashtag2 ... (mínimo 15 estratégicos)",
     "textos_capas_graficas": [
-      "Slide 1: Máx 5 palabras. Gancho directo.",
-      "Slide 2: Máx 5 palabras. Desarrollo/Beneficio.",
-      "Slide 3: Orden y firmeza."
+      "<h2>ETAPA 1 - EL PROBLEMA</h2><h1>TÍTULO DE IMPACTO GIGANTE</h1><p>Párrafo profundo que explique el dolor del cliente y cómo lo vive en el día a día.</p><div class='highlight'>Remate: Por qué esto es una trampa.</div>",
+      "<h2>DESARROLLO</h2><h1>SÍNTOMAS DEL CAOS</h1><p>Cómo operás hoy:</p><ul><li>Síntoma 1 con mucho detalle.</li><li>Síntoma 2 con intención.</li></ul><div class='highlight'>Acá es donde el 90% se estanca.</div>",
+      "<h2>LA SOLUCIÓN</h2><h1>NUESTRA INGENIERÍA</h1><p>Explicación de cómo tu marca lo resuelve.</p><div class='highlight'>Llamado a la acción fuerte.</div>"
     ],
     "fecha_hora_sugerida_iso": "${new Date().toISOString()}",
     "formato_recomendado": "CARRUSEL"
   }
-}`;
+}
+
+INSTRUCCIONES PARA CAPAS GRÁFICAS (textos_capas_graficas):
+No escribas poco, pero tampoco satures la imagen. Queremos placas con INTENCIÓN, estilo consultoría premium. Usa SÓLO etiquetas HTML para la estructura:
+- <h2> para la 'píldora' superior (categoría o etapa).
+- <h1> para el gancho (muy impactante y controversial).
+- <p> para párrafos descriptivos profundos (máximo 2 a 3 oraciones por placa, aprox 30-40 palabras para mantener diseño limpio).
+- <ul> y <li> para viñetas (máximo 3 puntos).
+- <div class='highlight'> para recuadros de remate abajo.`;
+}
+function getLuminance(hex) {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.substring(0, 2), 16) || 0;
+    const g = parseInt(h.substring(2, 4), 16) || 0;
+    const b = parseInt(h.substring(4, 6), 16) || 0;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+function getBrightColor(hex) {
+    if (getLuminance(hex) > 0.4)
+        return hex;
+    const h = hex.replace("#", "");
+    let r = parseInt(h.substring(0, 2), 16) || 0;
+    let g = parseInt(h.substring(2, 4), 16) || 0;
+    let b = parseInt(h.substring(4, 6), 16) || 0;
+    r = Math.min(255, Math.floor(r + (255 - r) * 0.6));
+    g = Math.min(255, Math.floor(g + (255 - g) * 0.6));
+    b = Math.min(255, Math.floor(b + (255 - b) * 0.6));
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 async function generarPlantillaHTML(ai, marca) {
-    const prompt = `Actúa como un Diseñador Web y Gráfico Experto de élite.
-Tu tarea es inventar una plantilla HTML/CSS para un carrusel de Instagram (1080x1080 píxeles) para la marca "${marca.nombre_comercial}" (Rubro: ${marca.datos_negocio.rubro}).
-
-Identidad Visual:
-- Color Primario: ${marca.identidad_visual.color_primario_hex}
-- Usa Google Fonts modernas y limpias (ej: Montserrat, Inter, Playfair Display) cargadas via @import.
-
-Requisitos Técnicos Estrictos:
-1. El tamaño DEBE ser exactamente 1080x1080. Añade esto en el CSS:
-   body { width: 1080px; height: 1080px; margin: 0; padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #0d0d0d; color: #fff; font-family: 'Inter', sans-serif; }
-2. El diseño debe ser ESPECTACULAR, premium, estético y moderno. Usa gradientes sutiles, sombras suaves (glassmorphism), patrones geométricos hechos con CSS puro o fondos abstractos creados con degradados radiales.
-3. El diseño debe incluir los siguientes MARCADORES DE POSICIÓN EXACTOS (yo los reemplazaré en mi código backend por el texto real):
-   - {{TEXTO}} : El texto principal de la placa (debe ir muy grande, legible, en el centro o destacado).
-   - {{SLIDE_ACTUAL}} / {{SLIDE_TOTAL}} : El contador de placas, usualmente minimalista arriba a la derecha o abajo en el centro.
-   - {{LOGO_URL}} : Úsalo en un tag <img src="{{LOGO_URL}}" style="max-height: 80px; object-fit: contain;"> (usualmente centrado abajo).
-4. Usa layouts Flexbox o CSS Grid.
-5. NO uses imágenes externas (salvo el logo). Todo el arte y diseño debe ser CSS puro.
-
-Devuelve ÚNICAMENTE el código HTML completo (con CSS incrustado). Sin explicaciones, sin bloques de markdown de código (\`\`\`), solo el código crudo que empiece con <!DOCTYPE html>.`;
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ parts: [{ text: prompt }] }],
-        });
-        let html = response.text || "";
-        // Limpiar markdown residual si Gemini no hace caso omiso
-        html = html.replace(/```html/gi, "").replace(/```/g, "").trim();
-        if (!html.startsWith("<!DOCTYPE") && !html.startsWith("<html")) {
-            html = "<!DOCTYPE html><html><head><style>body{background:#111;color:#fff;display:flex;align-items:center;justify-content:center;height:1080px;width:1080px;margin:0;font-family:sans-serif;}h1{font-size:80px;text-align:center;padding:100px;}</style></head><body><div><h1>{{TEXTO}}</h1></div></body></html>";
-        }
-        return html;
-    }
-    catch (err) {
-        functions.logger.error("[espontaneo] Error generando plantilla HTML:", err);
-        throw new Error("No se pudo generar la plantilla HTML.");
-    }
+    const rawColor = marca.identidad_visual.color_primario_hex || "#d4af37";
+    const color = rawColor.startsWith('#') ? rawColor : '#' + rawColor;
+    const isDark = getLuminance(color) < 0.5;
+    const textColorOnColor = isDark ? "#ffffff" : "#111111";
+    const brightColor = getBrightColor(color);
+    const logo = "{{LOGO_URL}}";
+    const texto = "{{TEXTO}}";
+    const fontImport = `<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800;900&display=swap" rel="stylesheet">`;
+    const plantillas = [
+        // VARIANTE 1: CLARO / BLANCO (Fondo blanco, borde grueso)
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #ffffff; color: #222222; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-left: 20px solid ${color}; background-color: #f8f9fa; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; }
+      .logo { max-height: 50px; filter: grayscale(1) contrast(2); opacity: 0.8; }
+      h2 { color: ${color}; padding: 0; font-size: 22px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; letter-spacing: 1px; border-bottom: 4px solid ${color}; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #111111; }
+      p { font-size: 28px; line-height: 1.4; color: #444444; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 600; color: #333333; }
+      li::before { content: '■'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: rgba(0,0,0,0.05); border-left: 6px solid ${color}; padding: 20px 30px; font-size: 26px; font-weight: 800; color: #111111; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 2: OSCURO PREMIUM (Usa brightColor para que resalte)
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #0b0f19; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.4); box-shadow: 15px 15px 0px ${brightColor}30; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-end; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.6; }
+      h2 { color: ${brightColor}; font-size: 20px; font-weight: 700; border-left: 4px solid ${brightColor}; padding-left: 15px; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 28px; line-height: 1.4; color: #d0d0d0; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #e0e0e0; }
+      li::before { content: '━'; position: absolute; left: 0; color: ${brightColor}; }
+      .highlight { background: rgba(255,255,255,0.03); border: 1px solid ${brightColor}50; padding: 20px 30px; font-size: 26px; font-weight: 700; color: #fff; margin-top: auto; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 3: COLOR SÓLIDO (Fondo 100% color de la marca)
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: ${color}; color: ${textColorOnColor}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 70px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; background: transparent; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: space-between; margin-top: 15px; flex-shrink: 0; width: 100%; border-top: 2px solid ${textColorOnColor}40; padding-top: 20px;}
+      .logo { max-height: 50px; ${isDark ? 'filter: brightness(0) invert(1);' : 'filter: brightness(0);'} opacity: 0.9; }
+      h2 { background-color: ${textColorOnColor}; color: ${color}; padding: 8px 20px; border-radius: 5px; font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; letter-spacing: 2px; }
+      h1 { font-size: 55px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: ${textColorOnColor}; }
+      p { font-size: 30px; line-height: 1.4; color: ${textColorOnColor}; opacity: 0.9; margin: 0 0 20px 0; font-weight: 500;}
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 30px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 700; color: ${textColorOnColor}; }
+      li::before { content: '→'; position: absolute; left: 0; color: ${textColorOnColor}; font-weight: bold;}
+      .highlight { background: ${textColorOnColor}15; border-radius: 10px; padding: 25px 30px; font-size: 28px; font-weight: 800; color: ${textColorOnColor}; margin-top: auto; width: 100%; box-sizing: border-box; text-align: left; border: 2px solid ${textColorOnColor}40; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 4: MITAD Y MITAD (Split screen)
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #ffffff 40%, ${color} 40%); color: #333; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 30px; background: #ffffff; box-shadow: 0 30px 60px rgba(0,0,0,0.3); }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: grayscale(1) contrast(2); opacity: 0.8; }
+      h2 { color: #ffffff; background: ${color}; padding: 8px 25px; border-radius: 50px; font-size: 20px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #000000; }
+      p { font-size: 28px; line-height: 1.4; color: #555555; margin: 0 0 20px 0; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 600; color: #333333; }
+      li::before { content: '◆'; position: absolute; left: 0; color: ${color}; font-size: 22px; }
+      .highlight { background: rgba(0,0,0,0.03); border: 2px dashed ${color}80; padding: 20px 30px; font-size: 26px; font-weight: 800; color: #000000; margin-top: auto; width: 100%; box-sizing: border-box; text-align: center; border-radius: 15px;}
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 5: SOFT CREAM / EDITORIAL
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #F4F0EB; color: #333333; font-family: 'Georgia', serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border: 1px solid #dcd3c6; background: transparent; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: center; align-items: center; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: grayscale(1); opacity: 0.7; }
+      h2 { color: ${color}; font-family: 'Montserrat', sans-serif; font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; letter-spacing: 3px; border-bottom: 1px solid ${color}; padding-bottom: 5px;}
+      h1 { font-size: 55px; font-weight: normal; line-height: 1.1; margin: 0 0 20px 0; color: #111111; font-style: italic; }
+      p { font-size: 28px; line-height: 1.5; color: #555555; margin: 0 0 20px 0; font-family: 'Montserrat', sans-serif;}
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; text-align: left; display: inline-block; font-family: 'Montserrat', sans-serif;}
+      li { font-size: 26px; line-height: 1.5; margin-bottom: 15px; padding-left: 30px; position: relative; font-weight: 500; color: #333333; }
+      li::before { content: '—'; position: absolute; left: 0; color: ${color}; font-weight: bold;}
+      .highlight { background: #EAE3D9; padding: 25px 40px; font-size: 24px; font-weight: normal; font-style: italic; color: #111111; margin-top: auto; width: 100%; box-sizing: border-box; border-radius: 5px; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 6: DARK BRUTALIST (Gigante cuadrado de color detrás)
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #000000; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border: 4px solid #ffffff; background-color: #000000; transform: translate(-20px, -20px); box-shadow: 25px 25px 0px ${color}; }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.9; }
+      h2 { background-color: #ffffff; color: #000000; padding: 5px 15px; font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 55px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 30px; line-height: 1.4; color: #dddddd; margin: 0 0 20px 0; font-weight: 500; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 30px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 600; color: #ffffff; }
+      li::before { content: '►'; position: absolute; left: 0; color: ${color}; }
+      .highlight { background: ${color}; color: ${textColorOnColor}; padding: 20px 30px; font-size: 28px; font-weight: 900; margin-top: auto; width: 100%; box-sizing: border-box; text-transform: uppercase; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 7: LIGHT MINIMALIST CENTRADO
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #f0f2f5; color: #1c1e21; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 40px; background: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.08); }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: center; align-items: center; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; }
+      .logo { max-height: 50px; filter: grayscale(1) contrast(2); opacity: 0.6; }
+      h2 { color: ${color}; padding: 8px 25px; border-radius: 50px; font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; background-color: ${color}15; letter-spacing: 1px;}
+      h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin: 0 0 20px 0; text-transform: uppercase; color: #000000; text-align: center; }
+      p { font-size: 30px; line-height: 1.4; color: #555555; margin: 0 0 20px 0; text-align: center; }
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; text-align: left; display: inline-block; }
+      li { font-size: 28px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 600; color: #333333; }
+      li::before { content: '✓'; position: absolute; left: 0; color: ${color}; font-weight: bold; font-size: 32px; line-height: 32px;}
+      .highlight { background: transparent; border-top: 2px solid #eeeeee; border-bottom: 2px solid #eeeeee; padding: 25px 30px; font-size: 26px; font-weight: 700; color: #111111; margin-top: auto; text-align: center; width: 100%; box-sizing: border-box; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`,
+        // VARIANTE 8: OSCURO CON FONDO DE IMAGEN TRAMA Y ACENTO ENORME
+        `<!DOCTYPE html><html><head><meta charset="UTF-8">${fontImport}<style>
+      body { width: 1080px; height: 1080px; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background-color: #080a0f; background-image: radial-gradient(${brightColor}20 1px, transparent 1px); background-size: 40px 40px; color: #f5f5f5; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+      .card { padding: 50px 60px 70px 60px; width: 100%; height: 85%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 40px 40px 0 0; background: linear-gradient(180deg, #111520 0%, #080a0f 100%); border-top: 2px solid ${brightColor}50; border-left: 2px solid ${brightColor}50; border-right: 2px solid ${brightColor}50; box-shadow: 0 -20px 60px rgba(0,0,0,0.8); }
+      .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; text-align: left; align-items: flex-start; }
+      .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; width: 100%; }
+      .logo { max-height: 50px; filter: brightness(0) invert(1); opacity: 0.8; }
+      h2 { color: #000000; background: ${brightColor}; padding: 8px 20px; border-radius: 5px; font-size: 20px; font-weight: 900; text-transform: uppercase; margin-bottom: 30px; margin-top: 0; display: inline-block; }
+      h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: #ffffff; }
+      p { font-size: 30px; line-height: 1.4; color: #cccccc; margin: 0 0 20px 0; font-weight: 500;}
+      ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+      li { font-size: 30px; line-height: 1.4; margin-bottom: 15px; padding-left: 40px; position: relative; font-weight: 500; color: #eeeeee; }
+      li::before { content: '➤'; position: absolute; left: 0; color: ${brightColor}; }
+      .highlight { background: rgba(0,0,0,0.3); padding: 25px 30px; font-size: 26px; font-weight: 700; color: #ffffff; margin-top: auto; width: 100%; box-sizing: border-box; border-left: 8px solid ${brightColor}; }
+    </style></head><body><div class="card"><div class="content-wrapper">${texto}</div><div class="footer"><img src="${logo}" class="logo"></div></div></body></html>`
+    ];
+    // Elegir una al azar
+    return plantillas[Math.floor(Math.random() * plantillas.length)];
 }
 // ═══════════════════════════════════════════════════════════════
 // HELPERS — Firebase Storage con reintentos
