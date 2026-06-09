@@ -2,13 +2,13 @@
 
 ## 🔴 CRÍTICO — Hacer HOY antes de agregar más clientes
 
-- [ ] **[CRIT-01] Revocar la clave del Admin SDK de Firebase**
+- [x] **[CRIT-01] Revocar la clave del Admin SDK de Firebase**
   - Ir a Google Cloud Console → IAM → Service Accounts
   - Encontrar `firebase-adminsdk-fbsvc@saas-estrategias.iam.gserviceaccount.com`
   - Eliminar la clave `5a88c4b7c1...` y generar una nueva
   - Eliminar el archivo `saas-estrategias-firebase-adminsdk-fbsvc-5a88c4b7c1.json` del directorio
 
-- [ ] **[CRIT-02] Agregar autenticación al Dashboard**
+- [x] **[CRIT-02] Agregar autenticación al Dashboard**
   - Crear componente `PrivateRoute.tsx`
   - Crear página `Login.tsx` con email/contraseña usando Firebase Auth
   - Envolver las rutas `/admin` y `/templates` con el `PrivateRoute`
@@ -17,35 +17,35 @@
 
 ## 🟠 ALTO — Hacer esta semana
 
-- [ ] **[HIGH-01] Asegurar las reglas de Firestore**
+- [x] **[HIGH-01] Asegurar las reglas de Firestore**
   - Reescribir `firestore.rules`: solo permitir lectura/escritura a usuarios autenticados
 
-- [ ] **[HIGH-01b] Asegurar las reglas de Storage**
+- [x] **[HIGH-01b] Asegurar las reglas de Storage**
   - Permitir lectura pública solo de `posts/`
   - Escritura solo para usuarios autenticados o Cloud Functions
 
-- [ ] **[HIGH-02] Hacer la validación del Webhook obligatoria**
+- [x] **[HIGH-02] Hacer la validación del Webhook obligatoria**
   - Si no hay `TELEGRAM_WEBHOOK_SECRET` configurado → rechazar con 500, no aceptar todo
 
-- [ ] **[HIGH-03] Sandboxear el HTML de Puppeteer**
+- [x] **[HIGH-03] Sandboxear el HTML de Puppeteer**
   - Deshabilitar JS en Puppeteer: `page.setJavaScriptEnabled(false)`
   - Agregar CSP header antes de setContent
 
 ## 🟡 MEDIO — Esta semana / próxima
 
-- [ ] **[MED-01]** Reducir logging del webhook (no logear el payload completo de Telegram)
+- [x] **[MED-01]** Reducir logging del webhook (no logear el payload completo de Telegram)
 - [ ] **[MED-02]** Mover `token_meta` de Firestore a Google Secret Manager
 - [ ] **[MED-03]** Validar explícitamente todas las variables de entorno al inicio de cada función
 
 ## 🟢 BAJA PRIORIDAD — Backlog
 
-- [ ] **[LOW-01]** Unificar los dos archivos de configuración de Firebase en el Dashboard
-- [ ] **[LOW-02]** Validar tamaño máximo de plantillas HTML (límite: 500KB)
+- [x] **[LOW-01]** Unificar los dos archivos de configuración de Firebase en el Dashboard
+- [x] **[LOW-02]** Validar tamaño máximo de plantillas HTML (límite: 500KB)
 
 ## Checklist Final
 
-- [ ] No quedan archivos `.json` de credenciales en el repositorio
-- [ ] El Dashboard redirige a `/login` sin sesión activa
-- [ ] Reglas de Firestore y Storage en modo restrictivo (deployed)
-- [ ] Webhook rechaza requests sin el header correcto
-- [ ] Puppeteer no ejecuta JavaScript de plantillas externas
+- [x] No quedan archivos `.json` de credenciales en el repositorio
+- [x] El Dashboard redirige a `/login` sin sesión activa
+- [x] Reglas de Firestore y Storage en modo restrictivo (deployed)
+- [x] Webhook rechaza requests sin el header correcto
+- [x] Puppeteer no ejecuta JavaScript de plantillas externas
