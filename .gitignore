@@ -16,6 +16,9 @@ saas-estrategias-firebase-adminsdk-fbsvc-*.json
 *-adminsdk-*.json
 *.pem
 *.key
+*-credentials.json
+*serviceAccount*.json
+*service_account*.json
 
 # IDEs and editors
 .vscode/

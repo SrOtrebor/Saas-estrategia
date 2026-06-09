@@ -75,18 +75,26 @@ export const ingestaEntradaEspontanea = functions
       return;
     }
 
-    // ─── Validar secret de Telegram ──────────────────────────
+    // ─── Validar secret de Telegram (OBLIGATORIO) ──────────────
     const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET;
     const headerToken = req.headers["x-telegram-bot-api-secret-token"];
 
-    if (secretToken && headerToken !== secretToken) {
+    if (!secretToken) {
+      // Si no hay secret configurado, la función está mal configurada — rechazar
+      functions.logger.error("[ingesta] TELEGRAM_WEBHOOK_SECRET no configurado. Función rechazará todas las solicitudes.");
+      res.status(500).send("Internal Server Error: Missing webhook secret");
+      return;
+    }
+
+    if (headerToken !== secretToken) {
       functions.logger.warn("[ingesta] Secret inválido — solicitud rechazada.");
       res.status(401).send("Unauthorized");
       return;
     }
 
     const update = req.body as TelegramUpdate;
-    functions.logger.info("[ingesta] Payload recibido:", JSON.stringify(update));
+    // Log mínimo: solo el tipo de update, sin exponer contenido del mensaje
+    functions.logger.info("[ingesta] Update recibido:", { update_id: update.update_id, tipo: update.message ? "message" : update.callback_query ? "callback_query" : "otro" });
     let message = update.message;
     const callbackQuery = update.callback_query;
 

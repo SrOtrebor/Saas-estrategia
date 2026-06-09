@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, setDoc, query } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../lib/firebase';
-import { XCircle, Loader2, Upload, BrainCircuit, Settings } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { db, storage, auth } from '../lib/firebase';
+import { XCircle, Loader2, Upload, BrainCircuit, Settings, LogOut } from 'lucide-react';
 
 interface MarcaConfig {
   id_marca: string;
@@ -166,7 +167,7 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold text-white mb-2">Administrador de Marcas</h1>
             <p className="text-gray-400">Panel de control de clientes SaaS.</p>
           </div>
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 items-center">
             <button 
               onClick={() => window.location.href='/templates'} 
               className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
@@ -178,6 +179,13 @@ export default function AdminDashboard() {
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               + Nueva PyME
+            </button>
+            <button 
+              onClick={() => signOut(auth)}
+              title="Cerrar sesión"
+              className="bg-gray-800 hover:bg-red-900/50 border border-gray-700 hover:border-red-700 text-gray-400 hover:text-red-400 p-3 rounded-lg transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>

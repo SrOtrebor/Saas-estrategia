@@ -98,7 +98,9 @@ export async function generarCarrusel(
 
       const page = await browser.newPage();
       await page.setViewport({ width: CANVAS_SIZE, height: CANVAS_SIZE });
-      await page.setContent(htmlPlaca, { waitUntil: "networkidle0" });
+      // Seguridad: deshabilitar JS para evitar SSRF desde plantillas HTML externas
+      await page.setJavaScriptEnabled(false);
+      await page.setContent(htmlPlaca, { waitUntil: "domcontentloaded" });
       
       const buffer = await page.screenshot({ type: "jpeg", quality: 90 });
       await page.close();

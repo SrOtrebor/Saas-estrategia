@@ -2,8 +2,46 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Solo usuarios autenticados pueden leer/escribir en el Dashboard (marcas y paquetes)
+    match /marcas/{marcaId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /paquetes_plantillas/{paqueteId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Las colas internas son escritas por Cloud Functions (Admin SDK) — bloquear acceso web
+    match /cola_ingesta/{docId} {
+      allow read, write: if false;
+    }
+
+    match /cola_menu_semanal/{docId} {
+      allow read, write: if false;
+    }
+
+    match /cola_generacion_menu/{docId} {
+      allow read, write: if false;
+    }
+
+    match /cola_docs/{docId} {
+      allow read, write: if false;
+    }
+
+    // El planificador solo puede ser leído por usuarios autenticados
+    match /planificador_contenido/{postId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // El banco de ideas solo puede ser leído por usuarios autenticados
+    match /banco_ideas/{ideaId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Bloquear todo lo demás por defecto
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

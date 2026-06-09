@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../lib/firebase';
 
 export interface PaquetePlantillas {
   id_paquete: string;
@@ -50,7 +50,18 @@ export default function TemplateManager() {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = { nombre: formData.nombre, plantillas: formData.plantillas.filter((p: string) => p.trim() !== '') };
+      const plantillasFiltradas = formData.plantillas.filter((p: string) => p.trim() !== '');
+      
+      // LOW-02: Validar tamaño máximo de 500KB por plantilla
+      const MAX_SIZE_BYTES = 512 * 1024; // 500KB
+      const plantillaGrande = plantillasFiltradas.find((p: string) => new Blob([p]).size > MAX_SIZE_BYTES);
+      if (plantillaGrande) {
+        alert('Una o más plantillas superan el límite de 500KB. Reducí el tamaño del HTML.');
+        setLoading(false);
+        return;
+      }
+
+      const payload = { nombre: formData.nombre, plantillas: plantillasFiltradas };
       
       if (formData.id_paquete) {
         await updateDoc(doc(db, 'paquetes_plantillas', formData.id_paquete), payload);
