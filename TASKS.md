@@ -1,10 +1,13 @@
-# Lista de Tareas Pendientes (TODO)
+# Registro de Tareas del Proyecto (SaaS Estrategias)
 
-Este archivo sirve para retomar el desarrollo desde otra PC.
+## Tareas Completadas Recientemente
+- [x] **Arquitectura Base Cloud Functions**: Ingesta de mensajes de Telegram y procesamiento con Gemini AI.
+- [x] **Motor Gráfico (Puppeteer)**: Creación dinámica de carruseles en PNG partiendo de HTML.
+- [x] **Dashboard Multi-Tenant (React)**: Interfaz de gestión para administrar "PyMEs" y modificar su configuración y branding.
+- [x] **Sistema Escalonable de Plantillas**: Gestor de Paquetes (matrices) que permite crear lotes de diseños y asignarlos a diferentes clientes en el Dashboard. Selección dinámica en `imageGenerator`.
 
-## Tareas Pendientes
-- [ ] **Probar Carruceles Dinámicos:** Verificar en producción si Puppeteer + Sparticuz están capturando correctamente el HTML generado por Gemini.
-- [ ] **Refinar Prompts de Diseño (Opcional):** Si el diseño de Gemini es muy aleatorio, acotar el prompt en `generarContenidoEspontaneo.ts` para que siempre respete un grid específico o layouts predefinidos, dándole menos libertad absoluta y más componentes de "Design System".
-- [ ] **Verificar creación de Índice de Firestore:** Confirmar que se creó el índice compuesto para la colección `planificador_contenido` que permite ordenar por `estado` y `fecha_hora_sugerida` para que funcione la función `publicadorContenidoInstagram`.
-- [ ] **Mejorar Manejo de Errores en Webhook:** Añadir logs detallados si `marcasSnap.empty` es true, para evitar que el bot no responda si un usuario no registrado o un Chat ID incorrecto le habla al bot.
-- [ ] **Pruebas de Publicación:** Testear que la función cron `publicadorContenidoInstagram` envíe exitosamente las imágenes generadas por el carrusel a la API Graph de Instagram.
+## Tareas Pendientes / Próximos Desarrollos
+- [ ] Integrar el módulo de cobros o pasarela de pagos vinculada a los paquetes habilitados por cliente.
+- [ ] Desarrollar módulo de auto-publicación nativo para Instagram y TikTok.
+- [ ] Reparar/mejorar exportación a Google Docs y Google Sheets (Grillas Semanales).
+- [ ] Crear módulo de ingesta y sincronización de contenido audivisual (Reels) grabados por el cliente.
