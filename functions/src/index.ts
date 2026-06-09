@@ -30,8 +30,8 @@ export { generarGrillaSemanal } from "./functions/generarContenidoEstrategico";
 // Función 2b: Procesamiento de inputs espontáneos (trigger /cola_ingesta)
 export { generarContenidoEspontaneo } from "./functions/generarContenidoEspontaneo";
 
-// Función 3: Publicador automático en Instagram (cada 15 min)
-export { publicadorContenidoInstagram } from "./functions/publicadorContenidoInstagram";
-
 // Función 4: Expansión de ideas y guardado en Google Docs (trigger /cola_docs)
 export { generarDocumentosEspontaneos } from "./functions/generarDocumentosEspontaneos";
+
+// Nuevos Triggers (Paso 1 y Paso 2 de ideación)
+export { procesarMenuSemanal, procesarGeneracionMenu } from "./functions/generarContenidoEstrategico";

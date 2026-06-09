@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import { MarcaConfig } from "../interfaces";
-import { crearDocumentoExpandido } from "../lib/googleDocs";
+import { agregarGuionADocumentoExistente } from "../lib/googleDocs";
 
 export const generarDocumentosEspontaneos = functions
   .runWith({ timeoutSeconds: 300, memory: "1GB" })
@@ -53,11 +53,11 @@ No devuelvas JSON, devuelve un texto en formato Markdown rico y estructurado.`;
       contenidoExpandido = "Ocurrió un error al intentar expandir las ideas con IA.";
     }
 
-    // ─── Paso 2: Crear el Google Doc ──────────────────────────
+    // ─── Paso 2: Crear el Google Doc en la carpeta del cliente ─────────
     let docUrl = "";
     try {
       const titulo = `[GUIONES] ${marca.nombre_comercial} - ${new Date().toLocaleDateString("es-AR")}`;
-      docUrl = await crearDocumentoExpandido(titulo, contenidoExpandido);
+      docUrl = await agregarGuionADocumentoExistente(marca.google_doc_id || "", titulo, contenidoExpandido);
     } catch (err) {
       functions.logger.error("[docs] Error creando Google Doc:", err);
     }

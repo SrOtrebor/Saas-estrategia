@@ -1,38 +1,31 @@
-# SaaS Estrategias - Bot de Automatización Instagram & Docs
+# SaaS de Estrategias y Contenido Automatizado
 
-Este repositorio contiene las Cloud Functions (Firebase) que potencian el Bot de Telegram "SaaS Estrategias". Es un sistema impulsado por IA que ingiere notas de voz y textos, ideando estrategias y diseñando contenido visual directamente para Instagram.
+Este proyecto es un Agente Autónomo diseñado para generar, gestionar y publicar contenido automatizado para múltiples marcas o clientes, integrando Inteligencia Artificial (Gemini), bases de datos (Firebase Firestore), y una interfaz conversacional (Bot de Telegram).
 
-## Características Principales:
+## Estado Actual (Versión 1.0)
 
-1. **Ingesta y Escucha (Telegram Webhook)**: Escucha los mensajes de los usuarios (texto o audio) y guarda los datos en crudo (`ingestaEntradaEspontanea`).
-2. **Generación de Contenido (Puppeteer + Gemini 2.0 Flash)**: Procesa las ideas y genera Carruseles para Instagram listos para publicar (`generarContenidoEspontaneo`).
-   - Construye copies persuasivos (Hook, Cuerpo, Remate).
-   - Aplica **"Plantillas Ajedrez"**: Una ruleta de 8 diseños variados (Claros, Oscuros, Split Screen, Brutalistas, etc.) para que el feed sea dinámico.
-   - Analiza la luminosidad de la identidad de la marca. Si el color primario es muy oscuro, lo ilumina matemáticamente en los diseños oscuros para mantener un contraste premium constante.
-   - Renderiza el HTML a JPEGs usando `@sparticuz/chromium` headless.
-3. **Generación de Documentos Estratégicos (Google Docs)**: Expande el pensamiento inicial en documentos largos o guiones en Google Docs y Drive (`generarDocumentosEspontaneos`).
-4. **Registro en Sheets y Automatización**: Guarda el historial y lo planifica en una Grilla Semanal (`generarGrillaSemanal`).
-5. **Publicador Automático**: Un Cron Job que toma los posts y los publica en la cuenta de Instagram conectada mediante la API oficial (`publicadorContenidoInstagram`).
+Actualmente, el sistema cuenta con la siguiente arquitectura básica en Firebase Cloud Functions:
 
-## Tecnologías
+1. **Ingesta de Entradas Espontáneas (`ingestaEntradaEspontanea`)**:
+   - Escucha mensajes de Telegram.
+   - Clasifica la intención del usuario.
+   - Guarda el "pensamiento" o nota de audio procesada en la base de datos para su posterior uso.
 
-- **Backend**: Firebase Cloud Functions (Node.js 22), Firestore, Firebase Storage
-- **IA Generativa**: `@google/genai` (Gemini 2.0 Flash)
-- **Motor Gráfico Headless**: `@sparticuz/chromium` & `puppeteer-core`
-- **Integraciones**: Telegram Bot API, Google Docs API, Google Sheets API, Instagram Graph API
+2. **Generación de Contenido Espontáneo (`generarContenidoEspontaneo`)**:
+   - Toma las notas espontáneas del usuario.
+   - Usa Google Gemini para redactar contenido profundo, carruseles de Instagram, y un guion para formato corto (Reels/TikToks).
+   - Genera automáticamente un **Carrusel Gráfico de 8 variantes premium** que rotan según la identidad visual (paleta de colores) configurada para el usuario.
+   - Envía los gráficos renderizados de vuelta a Telegram y también la propuesta de guion y texto.
 
-## Configuración y Variables de Entorno
+3. **(En Desarrollo) Generación de Documentos y Grilla Semanal**:
+   - Creación en Google Docs estructurado.
+   - Llenado de calendarios en Google Sheets.
 
-Asegurarse de tener configurado `.env` dentro de `/functions`:
-- `GEMINI_API_KEY`
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_SECRET_TOKEN`
-- `GOOGLE_SERVICE_ACCOUNT` (en base64, para Sheets y Docs)
-- Credenciales de la app de Facebook/Instagram.
+## Estética y Plantillas
+El sistema de generación de imágenes incluye un motor SVG-a-PNG con **8 plantillas de diseño exclusivas** que combinan de forma premium los colores de marca de los clientes. Se usan variantes Minimalistas, Brutalistas, Degradados y diseños geométricos avanzados.
 
-## Despliegue
-
-```bash
-cd functions
-npm run build
-npm run deploy
-```
+## Flujos Pendientes y Próximos Pasos
+- Corrección de exportación a Google Docs (estructura y guardado en carpetas).
+- Módulo de auto-publicación nativo (Instagram/TikTok).
+- Módulo de sincronización para videos grabados por el usuario.
+- Dashboard Frontend para configuración Multi-Tenant (crear clientes, personalizar colores, logos, prompts y estilos visuales).

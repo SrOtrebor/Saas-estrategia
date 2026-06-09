@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// CUIDADO: Estas reglas permiten lectura y escritura a CUALQUIERA.
+// Son ideales para desarrollo y pruebas. Para producción deberías restringirlas.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

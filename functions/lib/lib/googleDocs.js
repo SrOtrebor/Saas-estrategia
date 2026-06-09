@@ -1,14 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.crearDocumentoExpandido = crearDocumentoExpandido;
+exports.crearDocumentoEnCarpeta = crearDocumentoEnCarpeta;
+exports.agregarGuionADocumentoExistente = agregarGuionADocumentoExistente;
+exports.agregarGuionADocumento = agregarGuionADocumento;
 const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 let docsClient = null;
 let driveClient = null;
 async function getGoogleClients() {
     if (docsClient && driveClient)
         return { docsClient, driveClient };
+    // Si no hay DRIVE_FOLDER_ID, el archivo quedará en la raíz del Drive.
     if (!DRIVE_FOLDER_ID || DRIVE_FOLDER_ID === "PENDIENTE") {
-        throw new Error("Falta la variable de entorno GOOGLE_DRIVE_FOLDER_ID o está en PENDIENTE");
+        console.warn("[Google Docs] No hay GOOGLE_DRIVE_FOLDER_ID. Los docs irán a la raíz.");
     }
     // Se importa dentro de la función (lazy loading) para evitar el Timeout de Firebase al hacer deploy
     // ya que googleapis es una librería extremadamente grande que demora en cargarse.
@@ -23,19 +26,33 @@ async function getGoogleClients() {
     driveClient = google.drive({ version: "v3", auth });
     return { docsClient, driveClient };
 }
-async function crearDocumentoExpandido(titulo, contenido) {
+async function crearDocumentoEnCarpeta(titulo, contenido, folderId) {
     try {
         const { docsClient, driveClient } = await getGoogleClients();
         // 1. Crear el documento
-        const doc = await docsClient.documents.create({
+        const docResponse = await docsClient.documents.create({
             requestBody: {
                 title: titulo,
             },
         });
-        const documentId = doc.data.documentId;
-        // 2. Insertar el contenido en el documento
-        // Google Docs API requiere insertar texto en un index. 
-        // El documento vacío tiene un enter (\n) en el index 1.
+        const documentId = docResponse.data.documentId;
+        // 2. Mover el documento a la carpeta específica del cliente
+        if (folderId && folderId !== "PENDIENTE") {
+            // Obtenemos los parents actuales para removerlos (usualmente 'root')
+            const file = await driveClient.files.get({
+                fileId: documentId,
+                fields: "parents",
+            });
+            const previousParents = file.data.parents?.join(",") || "";
+            await driveClient.files.update({
+                fileId: documentId,
+                addParents: folderId,
+                removeParents: previousParents,
+                fields: "id, parents",
+            });
+        }
+        // 3. Insertar el contenido
+        // Como el documento es nuevo, insertamos al principio (index: 1)
         await docsClient.documents.batchUpdate({
             documentId,
             requestBody: {
@@ -43,31 +60,58 @@ async function crearDocumentoExpandido(titulo, contenido) {
                     {
                         insertText: {
                             location: { index: 1 },
-                            text: contenido,
+                            text: contenido + "\n",
                         },
                     },
                 ],
             },
         });
-        // 3. Mover el archivo a la carpeta especificada en Drive
-        // Primero obtenemos los parents actuales para removerlos
-        const file = await driveClient.files.get({
-            fileId: documentId,
-            fields: "parents",
-        });
-        const previousParents = file.data.parents?.join(",") || "";
-        await driveClient.files.update({
-            fileId: documentId,
-            addParents: DRIVE_FOLDER_ID,
-            removeParents: previousParents,
-            fields: "id, parents",
-        });
-        console.log(`[Google Docs] Documento creado y movido: ${documentId}`);
-        // Retornamos la URL pública (o de edición compartida)
+        console.log(`[Google Docs] Documento creado y guardado en carpeta: ${documentId}`);
         return `https://docs.google.com/document/d/${documentId}/edit`;
     }
     catch (error) {
         console.error(`[Google Docs] Error al crear documento: ${error.message}`);
+        throw error;
+    }
+}
+async function agregarGuionADocumentoExistente(documentId, titulo, contenido) {
+    if (!documentId || documentId === "PENDIENTE") {
+        throw new Error("No hay ID de Google Doc configurado para esta marca.");
+    }
+    try {
+        const { docsClient } = await getGoogleClients();
+        const textoAInsertar = `\n\n════════════════════════════════════════\n[${new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}] ${titulo}\n\n${contenido}\n`;
+        // Insertamos al principio (index 1) para que los nuevos guiones queden arriba
+        await docsClient.documents.batchUpdate({
+            documentId,
+            requestBody: {
+                requests: [{ insertText: { location: { index: 1 }, text: textoAInsertar } }],
+            },
+        });
+        return `https://docs.google.com/document/d/${documentId}/edit`;
+    }
+    catch (error) {
+        console.error(`[Google Docs] Error al agregar guion al doc existente: ${error.message}`);
+        throw error;
+    }
+}
+async function agregarGuionADocumento(titulo, contenido) {
+    // Mantenemos la original por retrocompatibilidad
+    try {
+        const { docsClient } = await getGoogleClients();
+        const documentId = process.env.GOOGLE_DOC_CENTRAL_ID;
+        if (!documentId)
+            throw new Error("No hay GOOGLE_DOC_CENTRAL_ID configurado en el .env");
+        const textoAInsertar = `\n\n════════════════════════════════════════\n[${new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}] ${titulo}\n\n${contenido}\n`;
+        await docsClient.documents.batchUpdate({
+            documentId,
+            requestBody: {
+                requests: [{ insertText: { location: { index: 1 }, text: textoAInsertar } }],
+            },
+        });
+        return `https://docs.google.com/document/d/${documentId}/edit`;
+    }
+    catch (error) {
         throw error;
     }
 }

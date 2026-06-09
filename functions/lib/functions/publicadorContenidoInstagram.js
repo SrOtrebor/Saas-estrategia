@@ -111,10 +111,17 @@ async function procesarPost(post, docRef) {
         throw new Error(`Marca no encontrada: ${post.id_marca}`);
     }
     const marca = marcaDoc.data();
-    // Obtener el access token de Meta desde Secret Manager / env
-    const metaToken = process.env.META_LONG_LIVED_TOKEN;
+    // Si el cliente no tiene publicación automática, enviamos el material por Telegram
+    if (marca.publicacion_automatica === false) {
+        functions.logger.info(`[publicador] Publicación automática desactivada para ${marca.nombre_comercial}. Enviando a Telegram.`);
+        await notificarPublicacionManualTelegram(post, marca);
+        await docRef.update({ estado: "PUBLICADO", updated_at: firestore_1.Timestamp.now() });
+        return;
+    }
+    // Obtener el access token de Meta desde la configuración de la marca o env como fallback
+    const metaToken = marca.token_meta || process.env.META_LONG_LIVED_TOKEN;
     if (!metaToken) {
-        throw new Error("[publicador] META_LONG_LIVED_TOKEN no configurado.");
+        throw new Error("[publicador] Token de Meta no configurado para esta marca.");
     }
     functions.logger.info(`[publicador] Publicando post ${post.id_post} (${post.formato}) para ${marca.nombre_comercial}`);
     switch (post.formato) {
@@ -287,6 +294,26 @@ async function notificarHistoriaTelegram(post, marca) {
         parse_mode: "Markdown",
     });
     functions.logger.info(`[publicador] Notificación de Historia enviada por Telegram a ${marca.nombre_comercial}`);
+}
+/**
+ * Notifica al operador por Telegram para que publique el contenido manualmente
+ * si la marca tiene desactivada la publicación automática.
+ */
+async function notificarPublicacionManualTelegram(post, marca) {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken)
+        return;
+    const assetsLinks = post.assets_links.map((link, idx) => `[Asset ${idx + 1}](${link})`).join("\n");
+    const mensaje = `🚀 *Nuevo Contenido Generado — ${marca.nombre_comercial}*\n\n` +
+        `_Publicación automática desactivada. Por favor, súbelo manualmente:_\n\n` +
+        `*Copy:*\n${post.contenido_generado.copy_instagram}\n\n` +
+        `*Archivos:*\n${assetsLinks}`;
+    await axios_1.default.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        chat_id: marca.credenciales_redes.telegram_chat_id,
+        text: mensaje,
+        parse_mode: "Markdown",
+        disable_web_page_preview: true,
+    });
 }
 // ═══════════════════════════════════════════════════════════════
 // HELPERS

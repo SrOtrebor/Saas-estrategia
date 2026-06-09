@@ -57,7 +57,13 @@ export interface CredencialesRedes {
   /** ID de la cuenta profesional de Instagram conectada a Meta Graph API */
   instagram_business_id: string;
   /** ID del chat o canal de Telegram para alertas push a este cliente */
-  telegram_chat_id: string;
+  telegram_chat_id?: string;
+}
+
+export interface PaquetePlantillas {
+  id_paquete: string;
+  nombre: string;
+  plantillas: string[];
 }
 
 /**
@@ -73,6 +79,19 @@ export interface MarcaConfig {
   comunicacion: ComunicacionConfig;
   identidad_visual: IdentidadVisual;
   credenciales_redes: CredencialesRedes;
+  
+  /** Token de larga duración de Meta Graph API (si está conectado) */
+  token_meta?: string;
+  /** Indica si los posts generados se publican solos o requieren acción manual */
+  publicacion_automatica: boolean;
+  /** URL o ID de la carpeta de Drive */
+  carpeta_drive_id?: string;
+  google_sheet_id?: string;
+  google_doc_id?: string;
+  paquetes_asignados?: string[];
+  /** Bandera para saber si el cliente ya completó el flujo inicial */
+  onboarding_completado: boolean;
+
   /** Marca de tiempo de la última modificación de la configuración */
   updated_at?: Timestamp;
 }
@@ -83,7 +102,7 @@ export interface MarcaConfig {
 // ═══════════════════════════════════════════════════════════════
 
 export type OrigenPost = "cron_semanal" | "input_espontaneo";
-export type FormatoPost = "REELS" | "CARRUSEL" | "IMAGEN" | "HISTORIA";
+export type FormatoPost = "REELS" | "CARRUSEL" | "IMAGEN" | "HISTORIA" | "REEL_TELEPROMPTER";
 export type EstadoPost =
   | "PENDIENTE"    // Generado por IA, esperando revisión humana
   | "APROBADO"     // Aprobado por el operador en el Panel de Control
@@ -165,6 +184,8 @@ export interface ContenidoGeneradoIA {
   fecha_hora_sugerida_iso: string;
   /** El formato que la IA recomienda para maximizar alcance */
   formato_recomendado: FormatoPost;
+  dia_semana: string;
+  tipo_estrategia: string;
 }
 
 /**

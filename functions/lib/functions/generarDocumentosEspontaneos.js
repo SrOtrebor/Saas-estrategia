@@ -87,11 +87,11 @@ No devuelvas JSON, devuelve un texto en formato Markdown rico y estructurado.`;
         functions.logger.error("[docs] Error llamando a Gemini:", err);
         contenidoExpandido = "Ocurrió un error al intentar expandir las ideas con IA.";
     }
-    // ─── Paso 2: Crear el Google Doc ──────────────────────────
+    // ─── Paso 2: Crear el Google Doc en la carpeta del cliente ─────────
     let docUrl = "";
     try {
         const titulo = `[GUIONES] ${marca.nombre_comercial} - ${new Date().toLocaleDateString("es-AR")}`;
-        docUrl = await (0, googleDocs_1.crearDocumentoExpandido)(titulo, contenidoExpandido);
+        docUrl = await (0, googleDocs_1.agregarGuionADocumentoExistente)(marca.google_doc_id || "", titulo, contenidoExpandido);
     }
     catch (err) {
         functions.logger.error("[docs] Error creando Google Doc:", err);
