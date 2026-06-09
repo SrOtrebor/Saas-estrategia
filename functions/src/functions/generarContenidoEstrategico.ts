@@ -20,6 +20,7 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { generarConGemini } from "../lib/gemini";
+import { requireEnv } from "../lib/envValidator";
 import { generarCarrusel } from "../lib/imageGenerator";
 import { FilaPlanificacion, actualizarPlanillaExistente } from "../lib/googleSheets";
 import { agregarGuionADocumentoExistente } from "../lib/googleDocs";
@@ -106,7 +107,7 @@ export const procesarGeneracionMenu = functions.runWith({ memory: "1GB", timeout
       const chatId = data.chat_id;
       if (chatId) {
         const axios = require("axios");
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const botToken = requireEnv("TELEGRAM_BOT_TOKEN");
         if (botToken) {
           try {
             const msgText = result.sheetsLink 
@@ -402,7 +403,7 @@ async function llamarIA(
 
 export async function proponerIdeasSemanales(marca: MarcaConfig): Promise<void> {
   const db = admin.firestore();
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = requireEnv("TELEGRAM_BOT_TOKEN");
   const chatId = marca.credenciales_redes.telegram_chat_id;
 
   if (!botToken || !chatId) {

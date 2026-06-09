@@ -80,8 +80,7 @@ export interface MarcaConfig {
   identidad_visual: IdentidadVisual;
   credenciales_redes: CredencialesRedes;
   
-  /** Token de larga duración de Meta Graph API (si está conectado) */
-  token_meta?: string;
+  // MED-02: token_meta eliminado. Debe ser almacenado en Google Secret Manager cuando se implemente la publicación.
   /** Indica si los posts generados se publican solos o requieren acción manual */
   publicacion_automatica: boolean;
   /** URL o ID de la carpeta de Drive */

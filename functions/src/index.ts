@@ -10,6 +10,10 @@
  */
 
 import * as admin from "firebase-admin";
+import { validarEntorno } from "./lib/envValidator";
+
+// MED-03: Validar que todas las variables estén presentes al iniciar la app
+validarEntorno();
 
 // Inicializar Firebase Admin SDK (una sola vez, en el cold start)
 // En producción, las credenciales se infieren automáticamente del entorno.

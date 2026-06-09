@@ -34,8 +34,8 @@
 ## 🟡 MEDIO — Esta semana / próxima
 
 - [x] **[MED-01]** Reducir logging del webhook (no logear el payload completo de Telegram)
-- [ ] **[MED-02]** Mover `token_meta` de Firestore a Google Secret Manager
-- [ ] **[MED-03]** Validar explícitamente todas las variables de entorno al inicio de cada función
+- [x] **[MED-02]** Mover `token_meta` de Firestore a Google Secret Manager
+- [x] **[MED-03]** Validar explícitamente todas las variables de entorno al inicio de cada función
 
 ## 🟢 BAJA PRIORIDAD — Backlog
 

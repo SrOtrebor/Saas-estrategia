@@ -6,13 +6,14 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { requireEnv } from "./envValidator";
 
 let _client: GoogleGenAI | null = null;
 
 export function getGeminiClient(): GoogleGenAI {
   if (_client) return _client;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = requireEnv("GEMINI_API_KEY");
   if (!apiKey) {
     throw new Error("[Gemini] GEMINI_API_KEY no configurada en el entorno.");
   }

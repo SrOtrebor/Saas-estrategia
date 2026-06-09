@@ -20,6 +20,7 @@ import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import { MarcaConfig, IngestaPayload } from "../interfaces";
 import { generarYGuardarContenido, proponerIdeasSemanales } from "./generarContenidoEstrategico";
+import { requireEnv } from "../lib/envValidator";
 
 // ═══════════════════════════════════════════════════════════════
 // TIPOS — Estructura del payload de Telegram
@@ -377,7 +378,7 @@ async function transcribirVozConGemini(voice: TelegramVoice): Promise<string> {
   const mimeType = voice.mime_type ?? "audio/ogg";
 
   // 3. Transcribir con Gemini multimodal (sin costo extra de API)
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{

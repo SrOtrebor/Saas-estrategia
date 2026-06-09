@@ -22,6 +22,7 @@ import { GoogleGenAI } from "@google/genai";
 import { MarcaConfig, ContenidoGeneradoIA, IngestaPayload, PosteoContenido } from "../interfaces";
 import { FilaPlanificacion, actualizarPlanillaExistente } from "../lib/googleSheets";
 import { generarCarrusel } from "../lib/imageGenerator";
+import { requireEnv } from "../lib/envValidator";
 
 // ═══════════════════════════════════════════════════════════════
 // CLOUD FUNCTION: generarContenidoEspontaneo
@@ -52,7 +53,7 @@ export const generarContenidoEspontaneo = functions
 
     // ─── Paso 2: Generar respuesta con Gemini 2.5 Flash ────────
     functions.logger.info("[espontaneo] Consultando a Gemini con Google Grounding...");
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
 
     // Agregar mensaje actual al historial temporalmente para el prompt
     const prompt = construirPromptBot(marca, ingesta.contenido_raw, historia);

@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import { MarcaConfig } from "../interfaces";
+import { requireEnv } from "../lib/envValidator";
 import { agregarGuionADocumentoExistente } from "../lib/googleDocs";
 
 export const generarDocumentosEspontaneos = functions
@@ -23,7 +24,7 @@ export const generarDocumentosEspontaneos = functions
     const marca = marcaDoc.data() as MarcaConfig;
 
     // ─── Paso 1: Generar expansión con Gemini 2.5 Flash ────────
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
     
     let instruccionSeleccion = "Expande TODAS las ideas mencionadas en el texto.";
     if (opcion === "docs_idea_1") instruccionSeleccion = "Filtra y expande ÚNICAMENTE la PRIMERA idea o viñeta mencionada en el texto. IGNORA la segunda idea y las demás.";
