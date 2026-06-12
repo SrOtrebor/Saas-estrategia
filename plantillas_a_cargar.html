@@ -1,0 +1,121 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 50px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background: {{COLOR_CLARO}}; color: {{COLOR_SECUNDARIO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .background-blob { position: absolute; width: 800px; height: 800px; background: radial-gradient(circle, {{COLOR_PRIMARIO}}40 0%, transparent 70%); top: -100px; right: -100px; z-index: 0; filter: blur(50px); }
+    .card { z-index: 1; padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 35px; background: {{COLOR_CLARO}}90; backdrop-filter: blur(25px); box-shadow: 0 25px 50px -12px {{COLOR_SECUNDARIO}}20; border-left: 10px solid {{COLOR_PRIMARIO}}; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-end; margin-top: 15px; flex-shrink: 0; width: 100%; }
+    .logo { max-height: 50px; opacity: 0.9; }
+    h2 { color: {{COLOR_PRIMARIO}}; font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 20px; margin-top: 0; display: inline-block; letter-spacing: 2px; border-bottom: 3px solid {{COLOR_PRIMARIO}}; padding-bottom: 5px; }
+    h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_SECUNDARIO}}; }
+    p { font-size: 28px; line-height: 1.5; color: {{COLOR_MEDIO}}; margin: 0 0 25px 0; font-weight: 600; }
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 28px; line-height: 1.5; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 700; color: {{COLOR_SECUNDARIO}}; }
+    li::before { content: '✦'; position: absolute; left: 0; color: {{COLOR_PRIMARIO}}; font-size: 30px; line-height: 38px; }
+    .highlight { background: {{COLOR_PRIMARIO}}20; border-left: 6px solid {{COLOR_PRIMARIO}}; padding: 25px 35px; font-size: 26px; font-weight: 700; color: {{COLOR_SECUNDARIO}}; margin-top: auto; width: 100%; box-sizing: border-box; border-radius: 0 15px 15px 0; }
+  </style></head><body><div class="background-blob"></div><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: {{COLOR_SECUNDARIO}}; color: {{COLOR_CLARO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 20px; border: 1px solid {{COLOR_MEDIO}}50; background: linear-gradient(180deg, {{COLOR_SECUNDARIO}} 0%, {{COLOR_MEDIO}}40 100%); box-shadow: 0 0 60px {{COLOR_MEDIO}}30; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; width: 100%; border-top: 1px solid {{COLOR_MEDIO}}50; padding-top: 20px; }
+    .logo { max-height: 50px; opacity: 0.8; filter: brightness(2); }
+    h2 { color: {{COLOR_SECUNDARIO}}; background-color: {{COLOR_PRIMARIO}}; padding: 8px 20px; border-radius: 8px; font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; letter-spacing: 1px; }
+    h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_CLARO}}; }
+    p { font-size: 28px; line-height: 1.5; color: {{COLOR_CLARO}}cc; margin: 0 0 25px 0; font-weight: 500; }
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 28px; line-height: 1.5; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 600; color: {{COLOR_CLARO}}; }
+    li::before { content: '━'; position: absolute; left: 0; color: {{COLOR_PRIMARIO}}; font-weight: bold; }
+    .highlight { background: {{COLOR_MEDIO}}40; border: 1px solid {{COLOR_PRIMARIO}}40; padding: 25px 35px; font-size: 26px; font-weight: 700; color: {{COLOR_CLARO}}; margin-top: auto; width: 100%; box-sizing: border-box; border-radius: 12px; border-left: 6px solid {{COLOR_PRIMARIO}}; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: {{COLOR_MEDIO}}; color: {{COLOR_CLARO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 70px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; background: transparent; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: space-between; margin-top: 15px; flex-shrink: 0; width: 100%; border-top: 2px solid {{COLOR_SECUNDARIO}}30; padding-top: 20px;}
+    .logo { max-height: 50px; opacity: 0.9; filter: brightness(2); }
+    h2 { background-color: {{COLOR_SECUNDARIO}}; color: {{COLOR_CLARO}}; padding: 10px 25px; border-radius: 50px; font-size: 20px; font-weight: 900; text-transform: uppercase; margin-bottom: 30px; margin-top: 0; letter-spacing: 1px; }
+    h1 { font-size: 55px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_CLARO}}; }
+    p { font-size: 30px; line-height: 1.4; color: {{COLOR_CLARO}}e6; margin: 0 0 25px 0; font-weight: 500;}
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 30px; line-height: 1.4; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 700; color: {{COLOR_CLARO}}; }
+    li::before { content: '→'; position: absolute; left: 0; color: {{COLOR_SECUNDARIO}}; font-weight: bold;}
+    .highlight { background: {{COLOR_SECUNDARIO}}40; border-radius: 15px; padding: 30px 40px; font-size: 28px; font-weight: 800; color: {{COLOR_CLARO}}; margin-top: auto; width: 100%; box-sizing: border-box; text-align: left; border: 2px solid {{COLOR_SECUNDARIO}}; box-shadow: 10px 10px 0px {{COLOR_SECUNDARIO}}80; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, {{COLOR_CLARO}} 50%, {{COLOR_MEDIO}} 50%); color: {{COLOR_SECUNDARIO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 30px; background: {{COLOR_CLARO}}; box-shadow: 0 30px 60px {{COLOR_SECUNDARIO}}50, inset 0 0 0 4px {{COLOR_PRIMARIO}}; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+    .logo { max-height: 50px; opacity: 0.8; }
+    h2 { color: {{COLOR_CLARO}}; background: {{COLOR_MEDIO}}; padding: 10px 25px; font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); }
+    h1 { font-size: 50px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_SECUNDARIO}}; }
+    p { font-size: 28px; line-height: 1.5; color: {{COLOR_MEDIO}}; margin: 0 0 25px 0; font-weight: 600;}
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 28px; line-height: 1.5; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 700; color: {{COLOR_SECUNDARIO}}; }
+    li::before { content: '◆'; position: absolute; left: 0; color: {{COLOR_PRIMARIO}}; font-size: 24px; }
+    .highlight { background: {{COLOR_MEDIO}}15; border: 2px dashed {{COLOR_MEDIO}}; padding: 25px 35px; font-size: 26px; font-weight: 800; color: {{COLOR_SECUNDARIO}}; margin-top: auto; width: 100%; box-sizing: border-box; text-align: center; border-radius: 20px; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 50px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: {{COLOR_PRIMARIO}}; color: {{COLOR_SECUNDARIO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; background: transparent; border-top: 5px solid {{COLOR_SECUNDARIO}}; border-bottom: 5px solid {{COLOR_SECUNDARIO}}; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: center; align-items: center; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: center; margin-top: 15px; flex-shrink: 0; width: 100%; }
+    .logo { max-height: 50px; opacity: 0.8; }
+    h2 { color: {{COLOR_CLARO}}; background-color: {{COLOR_SECUNDARIO}}; font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; letter-spacing: 4px; padding: 5px 15px; }
+    h1 { font-size: 55px; font-weight: 800; line-height: 1.1; margin: 0 0 25px 0; color: {{COLOR_SECUNDARIO}}; }
+    p { font-size: 28px; line-height: 1.5; color: {{COLOR_SECUNDARIO}}cc; margin: 0 0 25px 0; font-weight: 600; }
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; text-align: left; display: inline-block; }
+    li { font-size: 26px; line-height: 1.5; margin-bottom: 15px; padding-left: 35px; position: relative; font-weight: 600; color: {{COLOR_SECUNDARIO}}; }
+    li::before { content: '—'; position: absolute; left: 0; color: {{COLOR_CLARO}}; font-weight: bold; }
+    .highlight { background: {{COLOR_CLARO}}; padding: 30px 45px; font-size: 26px; font-weight: 700; color: {{COLOR_SECUNDARIO}}; margin-top: auto; width: 100%; box-sizing: border-box; border-radius: 100px; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 40px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: {{COLOR_SECUNDARIO}}; background-image: radial-gradient({{COLOR_MEDIO}} 2px, transparent 2px); background-size: 40px 40px; color: {{COLOR_CLARO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 50px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border: 6px solid {{COLOR_PRIMARIO}}; background-color: {{COLOR_SECUNDARIO}}; transform: translate(-15px, -15px); box-shadow: 25px 25px 0px {{COLOR_PRIMARIO}}; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-start; margin-top: 15px; flex-shrink: 0; width: 100%; }
+    .logo { max-height: 50px; opacity: 0.9; filter: brightness(2); }
+    h2 { background-color: {{COLOR_MEDIO}}; color: {{COLOR_CLARO}}; padding: 8px 18px; font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+    h1 { font-size: 55px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_CLARO}}; }
+    p { font-size: 30px; line-height: 1.4; color: {{COLOR_CLARO}}cc; margin: 0 0 25px 0; font-weight: 500; }
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 30px; line-height: 1.4; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 600; color: {{COLOR_CLARO}}; }
+    li::before { content: '►'; position: absolute; left: 0; color: {{COLOR_PRIMARIO}}; }
+    .highlight { background: {{COLOR_CLARO}}; color: {{COLOR_SECUNDARIO}}; padding: 25px 35px; font-size: 28px; font-weight: 900; margin-top: auto; width: 100%; box-sizing: border-box; text-transform: uppercase; border-left: 12px solid {{COLOR_PRIMARIO}}; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background-color: {{COLOR_CLARO}}; color: {{COLOR_CLARO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 60px 70px 80px 70px; width: 100%; height: 88%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 60px 60px 0 0; background: linear-gradient(180deg, {{COLOR_MEDIO}} 0%, {{COLOR_SECUNDARIO}} 100%); border-top: 4px solid {{COLOR_PRIMARIO}}; box-shadow: 0 -30px 80px {{COLOR_SECUNDARIO}}50; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: space-between; margin-top: 15px; flex-shrink: 0; width: 100%; }
+    .logo { max-height: 50px; opacity: 0.8; filter: brightness(2); }
+    h2 { color: {{COLOR_SECUNDARIO}}; background: {{COLOR_PRIMARIO}}; padding: 8px 25px; border-radius: 50px; font-size: 18px; font-weight: 900; text-transform: uppercase; margin-bottom: 30px; margin-top: 0; display: inline-block; }
+    h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_CLARO}}; }
+    p { font-size: 28px; line-height: 1.5; color: {{COLOR_CLARO}}e6; margin: 0 0 25px 0; font-weight: 500;}
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 28px; line-height: 1.5; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 500; color: {{COLOR_CLARO}}; }
+    li::before { content: '➤'; position: absolute; left: 0; color: {{COLOR_PRIMARIO}}; }
+    .highlight { background: {{COLOR_SECUNDARIO}}80; padding: 30px 40px; font-size: 26px; font-weight: 700; color: {{COLOR_CLARO}}; margin-top: auto; width: 100%; box-sizing: border-box; border-radius: 20px; border: 1px solid {{COLOR_PRIMARIO}}50; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>
+    body { width: 1080px; height: 1080px; margin: 0; padding: 30px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: {{COLOR_MEDIO}}; color: {{COLOR_SECUNDARIO}}; font-family: 'Montserrat', sans-serif; word-break: break-word; overflow-wrap: anywhere; }
+    .card { padding: 60px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; position: relative; border-radius: 20px; background: {{COLOR_CLARO}}; box-shadow: 0 30px 60px {{COLOR_SECUNDARIO}}80; }
+    .content-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; text-align: left; align-items: flex-start; }
+    .footer { height: 70px; display: flex; align-items: flex-end; justify-content: flex-end; margin-top: 15px; flex-shrink: 0; width: 100%; }
+    .logo { max-height: 50px; opacity: 0.9; }
+    h2 { color: {{COLOR_MEDIO}}; font-size: 20px; font-weight: 800; border-left: 5px solid {{COLOR_PRIMARIO}}; padding-left: 15px; text-transform: uppercase; margin-bottom: 25px; margin-top: 0; display: inline-block; }
+    h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin: 0 0 25px 0; text-transform: uppercase; color: {{COLOR_SECUNDARIO}}; }
+    p { font-size: 28px; line-height: 1.5; color: {{COLOR_MEDIO}}; margin: 0 0 25px 0; font-weight: 600; }
+    ul { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    li { font-size: 28px; line-height: 1.5; margin-bottom: 15px; padding-left: 45px; position: relative; font-weight: 700; color: {{COLOR_SECUNDARIO}}; }
+    li::before { content: '✓'; position: absolute; left: 0; color: {{COLOR_PRIMARIO}}; font-weight: bold; font-size: 32px; line-height: 32px;}
+    .highlight { background: transparent; border-top: 2px solid {{COLOR_PRIMARIO}}; border-bottom: 2px solid {{COLOR_PRIMARIO}}; padding: 25px 35px; font-size: 26px; font-weight: 700; color: {{COLOR_SECUNDARIO}}; margin-top: auto; text-align: center; width: 100%; box-sizing: border-box; }
+  </style></head><body><div class="card"><div class="content-wrapper">{{TEXTO}}</div><div class="footer"><img src="{{LOGO_URL}}" class="logo"></div></div></body></html>
+

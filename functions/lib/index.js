@@ -43,7 +43,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.procesarGeneracionMenu = exports.procesarMenuSemanal = exports.generarDocumentosEspontaneos = exports.generarContenidoEspontaneo = exports.generarGrillaSemanal = exports.ingestaEntradaEspontanea = void 0;
+exports.procesarTestPlantillas = exports.procesarGeneracionMenu = exports.procesarMenuSemanal = exports.generarDocumentosEspontaneos = exports.generarContenidoEspontaneo = exports.generarGrillaSemanal = exports.ingestaEntradaEspontanea = void 0;
 const admin = __importStar(require("firebase-admin"));
 const envValidator_1 = require("./lib/envValidator");
 // MED-03: Validar que todas las variables estén presentes al iniciar la app
@@ -72,4 +72,7 @@ Object.defineProperty(exports, "generarDocumentosEspontaneos", { enumerable: tru
 var generarContenidoEstrategico_2 = require("./functions/generarContenidoEstrategico");
 Object.defineProperty(exports, "procesarMenuSemanal", { enumerable: true, get: function () { return generarContenidoEstrategico_2.procesarMenuSemanal; } });
 Object.defineProperty(exports, "procesarGeneracionMenu", { enumerable: true, get: function () { return generarContenidoEstrategico_2.procesarGeneracionMenu; } });
+// Generar Muestrario de Plantillas
+var testPlantillas_1 = require("./functions/testPlantillas");
+Object.defineProperty(exports, "procesarTestPlantillas", { enumerable: true, get: function () { return testPlantillas_1.procesarTestPlantillas; } });
 //# sourceMappingURL=index.js.map

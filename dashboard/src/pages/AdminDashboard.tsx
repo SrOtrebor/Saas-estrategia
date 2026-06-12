@@ -15,8 +15,6 @@ interface MarcaConfig {
   google_sheet_id?: string;
   google_doc_id?: string;
   identidad_visual: {
-    color_primario_hex: string;
-    color_secundario_hex: string;
     logo_url?: string;
   };
   credenciales_redes?: {
@@ -49,8 +47,6 @@ export default function AdminDashboard() {
     google_sheet_id: '',
     google_doc_id: '',
     identidad_visual: {
-      color_primario_hex: '#000000',
-      color_secundario_hex: '#FFFFFF',
       logo_url: ''
     },
     credenciales_redes: {
@@ -105,7 +101,7 @@ export default function AdminDashboard() {
       setFormData({
         id_marca: '', nombre_comercial: '', rubro: '', tono_de_voz: 'Profesional pero cercano', criterio_ia: '',
         carpeta_drive_id: '', google_sheet_id: '', google_doc_id: '',
-        identidad_visual: { color_primario_hex: '#000000', color_secundario_hex: '#FFFFFF', logo_url: '' },
+        identidad_visual: { logo_url: '' },
         credenciales_redes: { telegram_chat_id: '' },
         plantillas: []
       });
@@ -372,20 +368,7 @@ export default function AdminDashboard() {
                           </label>
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1 flex justify-between">Color Primario <span>{formData.identidad_visual.color_primario_hex}</span></label>
-                        <div className="flex gap-2">
-                          <input type="color" value={formData.identidad_visual.color_primario_hex} onChange={(e) => setFormData({...formData, identidad_visual: {...formData.identidad_visual, color_primario_hex: e.target.value}})} className="h-10 w-16 bg-transparent rounded cursor-pointer" />
-                          <input type="text" value={formData.identidad_visual.color_primario_hex} onChange={(e) => setFormData({...formData, identidad_visual: {...formData.identidad_visual, color_primario_hex: e.target.value}})} className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1 flex justify-between">Color Secundario <span>{formData.identidad_visual.color_secundario_hex}</span></label>
-                        <div className="flex gap-2">
-                          <input type="color" value={formData.identidad_visual.color_secundario_hex} onChange={(e) => setFormData({...formData, identidad_visual: {...formData.identidad_visual, color_secundario_hex: e.target.value}})} className="h-10 w-16 bg-transparent rounded cursor-pointer" />
-                          <input type="text" value={formData.identidad_visual.color_secundario_hex} onChange={(e) => setFormData({...formData, identidad_visual: {...formData.identidad_visual, color_secundario_hex: e.target.value}})} className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" />
-                        </div>
-                      </div>
+
                     </div>
                   </div>
 

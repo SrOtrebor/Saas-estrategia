@@ -148,6 +148,10 @@ exports.generarContenidoEspontaneo = functions
     const totalSlides = Math.min(slides.length, 6);
     // 1. Generar imágenes del carrusel usando el motor unificado de Puppeteer
     const imageUrls = await (0, imageGenerator_1.generarCarrusel)(slides.slice(0, totalSlides), marca.identidad_visual, marca.nombre_comercial, ingesta.id_marca, ingestaId);
+    if (imageUrls.length === 0) {
+        await enviarMensaje(chatId, "⚠️ *Atención*: Este cliente no tiene plantillas cargadas. Por favor, ve al dashboard web y carga al menos una plantilla para generar las gráficas.");
+        throw new Error("No hay plantillas cargadas para generar carrusel");
+    }
     // Guardar en planificador_contenido
     const ahora = firestore_1.Timestamp.now();
     const post = {

@@ -79,6 +79,7 @@ export interface MarcaConfig {
   comunicacion: ComunicacionConfig;
   identidad_visual: IdentidadVisual;
   credenciales_redes: CredencialesRedes;
+  plantillas?: string[];
   
   // MED-02: token_meta eliminado. Debe ser almacenado en Google Secret Manager cuando se implemente la publicación.
   /** Indica si los posts generados se publican solos o requieren acción manual */

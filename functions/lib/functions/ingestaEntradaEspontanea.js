@@ -241,6 +241,11 @@ exports.ingestaEntradaEspontanea = functions
         functions.logger.info(`[ingesta] Marca identificada: ${marca.nombre_comercial}`);
         // ─── Paso 1.5: Comando de prueba ──────────────────────────
         if (message.text && message.text.trim() === "/test") {
+            if (!marca.plantillas || marca.plantillas.length === 0) {
+                await enviarMensaje(chatId, "⚠️ Este cliente no tiene plantillas cargadas. Por favor, ve al panel web y carga al menos una plantilla para activar la generación visual.");
+                res.status(200).send("OK");
+                return;
+            }
             await enviarMensaje(chatId, "🛠️ Ejecutando prueba de sistema completa (Texto -> Imágenes -> Google Sheets)...");
             const payload = {
                 id_marca: marca.id_marca,
@@ -249,6 +254,22 @@ exports.ingestaEntradaEspontanea = functions
                 created_at: firestore_1.Timestamp.now(),
             };
             await db.collection("cola_ingesta").add(payload);
+            res.status(200).send("OK");
+            return;
+        }
+        // ─── Paso 1.6: Comando de test de plantillas ──────────────
+        if (message.text && message.text.trim() === "/test_plantillas") {
+            if (!marca.plantillas || marca.plantillas.length === 0) {
+                await enviarMensaje(chatId, "⚠️ Este cliente no tiene plantillas cargadas. Por favor, ve al panel web y carga al menos una plantilla para activar la generación visual.");
+                res.status(200).send("OK");
+                return;
+            }
+            await enviarMensaje(chatId, "⏳ ¡Entendido! Generando muestrario con todas las plantillas. Esto puede demorar unos minutos, te las enviaré juntas apenas termine...");
+            await db.collection("cola_test_plantillas").add({
+                id_marca: marca.id_marca,
+                chat_id: chatId,
+                created_at: firestore_1.Timestamp.now()
+            });
             res.status(200).send("OK");
             return;
         }

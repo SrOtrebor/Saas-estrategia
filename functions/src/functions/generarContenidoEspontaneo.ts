@@ -128,6 +128,11 @@ export const generarContenidoEspontaneo = functions
       ingestaId
     );
 
+    if (imageUrls.length === 0) {
+      await enviarMensaje(chatId, "⚠️ *Atención*: Este cliente no tiene plantillas cargadas. Por favor, ve al dashboard web y carga al menos una plantilla para generar las gráficas.");
+      throw new Error("No hay plantillas cargadas para generar carrusel");
+    }
+
     // Guardar en planificador_contenido
     const ahora = Timestamp.now();
     const post: Omit<PosteoContenido, "id_post"> = {

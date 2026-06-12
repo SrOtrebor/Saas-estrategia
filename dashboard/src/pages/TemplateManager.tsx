@@ -113,8 +113,19 @@ export default function TemplateManager() {
           <form onSubmit={handleSave} className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-4">
-                <label className="block text-gray-300 font-medium text-lg">Variantes HTML</label>
+                <label className="block text-gray-300 font-medium text-lg">Variantes HTML ({plantillas.length})</label>
                 <div className="flex space-x-3">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (window.confirm('¿Seguro que quieres borrar todas las plantillas de este cliente?')) {
+                        setPlantillas([]);
+                      }
+                    }} 
+                    className="flex items-center bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-white font-medium transition-colors"
+                  >
+                    Borrar Todas
+                  </button>
                   <label className="flex items-center bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-white font-medium cursor-pointer transition-colors shadow-sm">
                     Importar desde HTML
                     <input type="file" accept=".html" className="hidden" onChange={handleFileUpload} />
@@ -134,19 +145,17 @@ export default function TemplateManager() {
                   <div key={idx} className="relative bg-gray-900 rounded-lg p-4 border border-gray-700">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-bold text-gray-400">Variante #{idx + 1}</span>
-                      {plantillas.length > 1 && (
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            const nuevas = [...plantillas];
-                            nuevas.splice(idx, 1);
-                            setPlantillas(nuevas);
-                          }} 
-                          className="text-xs text-red-400 hover:text-red-300 bg-gray-800 px-3 py-1 rounded-md transition-colors"
-                        >
-                          Eliminar
-                        </button>
-                      )}
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const nuevas = [...plantillas];
+                          nuevas.splice(idx, 1);
+                          setPlantillas(nuevas);
+                        }} 
+                        className="text-xs text-red-400 hover:text-red-300 bg-gray-800 px-3 py-1 rounded-md transition-colors"
+                      >
+                        Eliminar
+                      </button>
                     </div>
                     <textarea 
                       value={html} 

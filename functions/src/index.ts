@@ -39,3 +39,6 @@ export { generarDocumentosEspontaneos } from "./functions/generarDocumentosEspon
 
 // Nuevos Triggers (Paso 1 y Paso 2 de ideación)
 export { procesarMenuSemanal, procesarGeneracionMenu } from "./functions/generarContenidoEstrategico";
+
+// Generar Muestrario de Plantillas
+export { procesarTestPlantillas } from "./functions/testPlantillas";
