@@ -10,11 +10,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getGeminiClient = getGeminiClient;
 exports.generarConGemini = generarConGemini;
 const genai_1 = require("@google/genai");
+const envValidator_1 = require("./envValidator");
 let _client = null;
 function getGeminiClient() {
     if (_client)
         return _client;
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = (0, envValidator_1.requireEnv)("GEMINI_API_KEY");
     if (!apiKey) {
         throw new Error("[Gemini] GEMINI_API_KEY no configurada en el entorno.");
     }

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, setDoc, query } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { signOut } from 'firebase/auth';
 import { db, storage, auth } from '../lib/firebase';
-import { XCircle, Loader2, Upload, BrainCircuit, Settings, LogOut } from 'lucide-react';
+import { XCircle, Loader2, Upload, BrainCircuit, Settings, LogOut, LayoutTemplate, Trash2 } from 'lucide-react';
 
 interface MarcaConfig {
   id_marca: string;
@@ -22,7 +22,7 @@ interface MarcaConfig {
   credenciales_redes?: {
     telegram_chat_id?: string;
   };
-  paquetes_asignados?: string[];
+  plantillas?: string[];
 }
 
 export default function AdminDashboard() {
@@ -56,10 +56,8 @@ export default function AdminDashboard() {
     credenciales_redes: {
       telegram_chat_id: ''
     },
-    paquetes_asignados: []
+    plantillas: []
   });
-
-  const [paquetes, setPaquetes] = useState<any[]>([]);
 
   const fetchMarcas = async () => {
     setLoading(true);
@@ -77,20 +75,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchPaquetes = async () => {
-    try {
-      const q = query(collection(db, 'paquetes_plantillas'));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({ ...doc.data() as any }));
-      setPaquetes(data);
-    } catch (error) {
-      console.error("Error al obtener paquetes:", error);
-    }
-  };
-
   useEffect(() => {
     fetchMarcas();
-    fetchPaquetes();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,7 +107,7 @@ export default function AdminDashboard() {
         carpeta_drive_id: '', google_sheet_id: '', google_doc_id: '',
         identidad_visual: { color_primario_hex: '#000000', color_secundario_hex: '#FFFFFF', logo_url: '' },
         credenciales_redes: { telegram_chat_id: '' },
-        paquetes_asignados: []
+        plantillas: []
       });
       setLogoFile(null);
       setLogoPreview('');
@@ -168,12 +154,6 @@ export default function AdminDashboard() {
             <p className="text-gray-400">Panel de control de clientes SaaS.</p>
           </div>
           <div className="flex space-x-4 items-center">
-            <button 
-              onClick={() => window.location.href='/templates'} 
-              className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              Gestor de Plantillas
-            </button>
             <button 
               onClick={() => setShowModal(true)} 
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
@@ -224,6 +204,24 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => {
+                        if (window.confirm("¿Estás seguro que deseas eliminar a " + marca.nombre_comercial + "? Esto no se puede deshacer.")) {
+                          setSaving(true);
+                          import('firebase/firestore').then(({ deleteDoc, doc }) => {
+                            deleteDoc(doc(db, "marcas", marca.id_marca))
+                              .then(() => fetchMarcas())
+                              .catch(err => alert("Error eliminando: " + err.message))
+                              .finally(() => setSaving(false));
+                          });
+                        }
+                      }}
+                      className="flex items-center justify-center p-2 bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white rounded-lg transition"
+                      title="Eliminar PyME"
+                      disabled={saving}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    <button 
+                      onClick={() => {
                         setFormData(marca);
                         setLogoPreview(marca.identidad_visual?.logo_url || '');
                         setShowModal(true);
@@ -233,6 +231,14 @@ export default function AdminDashboard() {
                     >
                       <Settings size={18} />
                       Editar
+                    </button>
+                    <button 
+                      onClick={() => window.location.href=`/templates/${marca.id_marca}`}
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
+                      title="Administrar plantillas HTML del cliente"
+                    >
+                      <LayoutTemplate size={18} />
+                      Plantillas
                     </button>
                     <button 
                       onClick={() => { setSelectedMarca(marca); setShowIaModal(true); }}
@@ -306,37 +312,34 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-gray-400 mb-1">ID Google Sheet (Grilla Mensual)</label>
-                    <input type="text" value={formData.google_sheet_id || ''} onChange={e => setFormData({ ...formData, google_sheet_id: e.target.value })} className="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" />
+                    <input 
+                      type="text" 
+                      value={formData.google_sheet_id || ''} 
+                      onChange={e => {
+                        let val = e.target.value;
+                        const match = val.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match && match[1]) val = match[1];
+                        setFormData({ ...formData, google_sheet_id: val });
+                      }} 
+                      className="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" 
+                    />
                   </div>
                   <div>
                     <label className="block text-gray-400 mb-1">ID Google Doc (Guiones de Reels)</label>
-                    <input type="text" value={formData.google_doc_id || ''} onChange={e => setFormData({ ...formData, google_doc_id: e.target.value })} className="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" />
+                    <input 
+                      type="text" 
+                      value={formData.google_doc_id || ''} 
+                      onChange={e => {
+                        let val = e.target.value;
+                        const match = val.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match && match[1]) val = match[1];
+                        setFormData({ ...formData, google_doc_id: val });
+                      }} 
+                      className="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" 
+                    />
                   </div>
                   
-                  <div className="md:col-span-2">
-                    <label className="block text-gray-400 mb-2">Paquetes de Diseño Habilitados</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {paquetes.map(pkg => (
-                        <label key={pkg.id_paquete} className="flex items-center space-x-2 bg-gray-700 p-2 rounded cursor-pointer hover:bg-gray-600">
-                          <input 
-                            type="checkbox" 
-                            checked={(formData.paquetes_asignados || []).includes(pkg.id_paquete)}
-                            onChange={(e) => {
-                              const current = formData.paquetes_asignados || [];
-                              if (e.target.checked) {
-                                setFormData({ ...formData, paquetes_asignados: [...current, pkg.id_paquete] });
-                              } else {
-                                setFormData({ ...formData, paquetes_asignados: current.filter(id => id !== pkg.id_paquete) });
-                              }
-                            }}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-white text-sm">{pkg.nombre}</span>
-                        </label>
-                      ))}
-                      {paquetes.length === 0 && <span className="text-gray-500 italic text-sm">No hay paquetes creados. Usará el diseño por defecto.</span>}
-                    </div>
-                  </div>
+                  
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-300 mb-1">Rubro / Contexto de la Marca (Instrucciones para la IA)</label>

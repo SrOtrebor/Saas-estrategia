@@ -22,7 +22,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { generarConGemini } from "../lib/gemini";
 import { requireEnv } from "../lib/envValidator";
 import { generarCarrusel } from "../lib/imageGenerator";
-import { FilaPlanificacion, actualizarPlanillaExistente } from "../lib/googleSheets";
+import { FilaPlanificacion, actualizarPlanillaExistente, prepararSemanaEnPlanilla, actualizarFilaPlanilla } from "../lib/googleSheets";
 import { agregarGuionADocumentoExistente } from "../lib/googleDocs";
 import {
   MarcaConfig,
@@ -102,7 +102,8 @@ export const procesarGeneracionMenu = functions.runWith({ memory: "1GB", timeout
     
     if (marcaSnap.exists) {
       const contextoAdicional = `Por favor, desarrollá el contenido completo basándote estrictamente en esta idea aprobada por el usuario:\nTítulo: ${boceto?.titulo_corto}\nFormato esperado: ${boceto?.formato}\nResumen de la idea: ${boceto?.resumen}\n\nIMPORTANTE: El output debe respetar el formato ${boceto?.formato}.`;
-      const result = await generarYGuardarContenido(marcaSnap.data() as MarcaConfig, "input_espontaneo", contextoAdicional);
+      const googleSheetRow = boceto?.google_sheet_row;
+      const result = await generarYGuardarContenido(marcaSnap.data() as MarcaConfig, "input_espontaneo", contextoAdicional, googleSheetRow);
       
       const chatId = data.chat_id;
       if (chatId) {
@@ -157,7 +158,8 @@ export const procesarGeneracionMenu = functions.runWith({ memory: "1GB", timeout
 export async function generarYGuardarContenido(
   marca: MarcaConfig,
   origen: "cron_semanal" | "input_espontaneo",
-  contextoAdicional?: string
+  contextoAdicional?: string,
+  googleSheetRow?: number
 ): Promise<{ postId: string, links: string[], sheetsLink?: string }> {
   const db = admin.firestore();
 
@@ -265,10 +267,12 @@ export async function generarYGuardarContenido(
       estado: "Pendiente"
     };
 
-    const sheetsLink = await actualizarPlanillaExistente(
-      marca.google_sheet_id || "PENDIENTE",
-      [fila]
-    );
+    let sheetsLink;
+    if (googleSheetRow) {
+      sheetsLink = await actualizarFilaPlanilla(marca.google_sheet_id || "PENDIENTE", googleSheetRow, fila);
+    } else {
+      sheetsLink = await actualizarPlanillaExistente(marca.google_sheet_id || "PENDIENTE", [fila]);
+    }
     return { postId: docRef.id, links: assetsLinks, sheetsLink };
   } catch (error) {
     functions.logger.error("[generarContenido] Error escribiendo en Google Sheets", error);
@@ -413,6 +417,19 @@ export async function proponerIdeasSemanales(marca: MarcaConfig): Promise<void> 
 
   functions.logger.info(`[proponerIdeas] Generando menú de ideas para: ${marca.nombre_comercial}`);
 
+  // 1. Obtener las últimas ideas generadas para no repetirlas
+  const ideasPreviasSnap = await db.collection("banco_ideas")
+    .where("id_marca", "==", marca.id_marca)
+    .orderBy("created_at", "desc")
+    .limit(15)
+    .get();
+
+  let ideasPreviasContexto = "";
+  if (!ideasPreviasSnap.empty) {
+    const titulosPrevios = ideasPreviasSnap.docs.map(d => `- ${d.data().titulo_corto}`);
+    ideasPreviasContexto = `\nIDEAS YA PROPUESTAS RECIENTEMENTE (PROHIBIDO REPETIR ESTOS ÁNGULOS O TEMAS):\n${titulosPrevios.join("\n")}\n`;
+  }
+
   const promptIdeacion = `
 Sos el ESTRATEGA DE CONTENIDO principal para la marca ${marca.nombre_comercial} (Rubro: ${marca.datos_negocio.rubro}).
 Tu objetivo es armar un "Menú de Ideas Semanal" basado en TENDENCIAS ACTUALES.
@@ -421,20 +438,24 @@ IDENTIDAD DE MARCA:
 - Público: ${marca.datos_negocio.publico_objetivo}
 - Tono: ${marca.comunicacion.tono_de_voz}
 - Pilares: ${marca.comunicacion.pilares_contenido.join(", ")}
-
+${ideasPreviasContexto}
 TAREA:
 1. Investigá mentalmente cuáles son las tendencias, noticias o dolores más actuales de esta semana para este nicho.
 2. Generá exactamente 5 ideas de contenido (mezclá CARRUSEL y REEL_TELEPROMPTER).
+TOMA EN CUENTA: Debes generar exactamente 5 ideas, obligatoriamente asignadas a los días de la semana de Lunes a Viernes.
+
 3. Devolvé un JSON estricto con la siguiente estructura (NADA MÁS QUE EL JSON):
 
 {
   "ideas": [
     {
+      "dia_semana": "Lunes",
       "titulo_corto": "Título llamativo (máx 5 palabras)",
       "formato": "CARRUSEL o REEL_TELEPROMPTER",
       "resumen": "Descripción de 2 líneas de qué va a tratar el post y por qué va a funcionar."
     }
   ]
+
 }`;
 
   try {
@@ -451,6 +472,26 @@ TAREA:
     const ideas = resultParsed.ideas || [];
     if (ideas.length === 0) return;
 
+    // Crear filas preliminares para Sheets
+    const filasPreliminares: FilaPlanificacion[] = ideas.map((idea: any) => ({
+      dia: idea.dia_semana || "Día no asignado",
+      formato: idea.formato || "",
+      copy: "",
+      hashtags: "",
+      tipoEstrategia: "Día Libre",
+      linkContenido: "A la espera de generación",
+      estado: "Propuesto"
+    }));
+
+    let rowIndices: number[] = [];
+    try {
+      if (marca.google_sheet_id) {
+        rowIndices = await prepararSemanaEnPlanilla(marca.google_sheet_id, filasPreliminares);
+      }
+    } catch (err) {
+      functions.logger.error("Error al preparar la semana en Google Sheets", err);
+    }
+
     let mensajeTelegram = `📅 *MENÚ SEMANAL DE IDEAS* 📅\n_Investigué las tendencias actuales y estas son mis 5 propuestas para ${marca.nombre_comercial}:_\n\n`;
     
     const inline_keyboard: any[] = [];
@@ -460,16 +501,18 @@ TAREA:
       const ideaRef = await db.collection("banco_ideas").add({
         id_marca: marca.id_marca,
         titulo_corto: idea.titulo_corto,
+        dia_semana: idea.dia_semana,
         formato: idea.formato,
         resumen: idea.resumen,
         estado: "BOCETO",
+        google_sheet_row: rowIndices[i] || null,
         created_at: Timestamp.now()
       });
 
-      mensajeTelegram += `*${i+1}. ${idea.titulo_corto}* [${idea.formato}]\n_${idea.resumen}_\n\n`;
+      mensajeTelegram += `*${idea.dia_semana || `Idea ${i+1}`} - ${idea.titulo_corto}* [${idea.formato}]\n_${idea.resumen}_\n\n`;
       
       inline_keyboard.push([{
-        text: `⚡ Generar Idea ${i+1}`,
+        text: `⚡ Generar ${idea.dia_semana || `Idea ${i+1}`}`,
         callback_data: `generar_post_${ideaRef.id}`
       }]);
     }

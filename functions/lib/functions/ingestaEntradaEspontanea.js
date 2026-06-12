@@ -56,6 +56,7 @@ const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-admin/firestore");
 const axios_1 = __importDefault(require("axios"));
 const genai_1 = require("@google/genai");
+const envValidator_1 = require("../lib/envValidator");
 // ═══════════════════════════════════════════════════════════════
 // CLOUD FUNCTION: ingestaEntradaEspontanea (HTTPS Webhook)
 // ═══════════════════════════════════════════════════════════════
@@ -238,6 +239,19 @@ exports.ingestaEntradaEspontanea = functions
         }
         const marca = marcasSnap.docs[0].data();
         functions.logger.info(`[ingesta] Marca identificada: ${marca.nombre_comercial}`);
+        // ─── Paso 1.5: Comando de prueba ──────────────────────────
+        if (message.text && message.text.trim() === "/test") {
+            await enviarMensaje(chatId, "🛠️ Ejecutando prueba de sistema completa (Texto -> Imágenes -> Google Sheets)...");
+            const payload = {
+                id_marca: marca.id_marca,
+                tipo: "texto",
+                contenido_raw: "Armá un carrusel gráfico de prueba sobre los beneficios de usar IA en los negocios.",
+                created_at: firestore_1.Timestamp.now(),
+            };
+            await db.collection("cola_ingesta").add(payload);
+            res.status(200).send("OK");
+            return;
+        }
         // ─── Paso 2: Detectar tipo de payload ───────────────────
         let tipo;
         let contenidoRaw;
@@ -324,7 +338,7 @@ async function transcribirVozConGemini(voice) {
     const audioBase64 = Buffer.from(audioRes.data).toString("base64");
     const mimeType = voice.mime_type ?? "audio/ogg";
     // 3. Transcribir con Gemini multimodal (sin costo extra de API)
-    const ai = new genai_1.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new genai_1.GoogleGenAI({ apiKey: (0, envValidator_1.requireEnv)("GEMINI_API_KEY") });
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: [{

@@ -39,16 +39,8 @@ export async function generarCarrusel(
   const marcaData = marcaDoc.data() as any;
 
   let todasLasPlantillas: string[] = [];
-  if (marcaData && marcaData.paquetes_asignados && marcaData.paquetes_asignados.length > 0) {
-    for (const paqueteId of marcaData.paquetes_asignados) {
-      const paqueteDoc = await db.collection("paquetes_plantillas").doc(paqueteId).get();
-      if (paqueteDoc.exists) {
-        const data = paqueteDoc.data();
-        if (data && data.plantillas) {
-          todasLasPlantillas = todasLasPlantillas.concat(data.plantillas);
-        }
-      }
-    }
+  if (marcaData && marcaData.plantillas && marcaData.plantillas.length > 0) {
+    todasLasPlantillas = marcaData.plantillas;
   }
 
   let customTemplate: string | null = null;
@@ -151,10 +143,20 @@ function generarPlantillaHTML(identidad: IdentidadVisual, customTemplate: string
   if (customTemplate) {
     let t = customTemplate;
     // Soporte para los placeholders en plantillas cargadas por el usuario
-    t = t.replace(/{{COLOR_PRIMARIO}}/g, cAccent);
-    t = t.replace(/{{COLOR_SECUNDARIO}}/g, cDark);
-    t = t.replace(/{{COLOR_CLARO}}/g, cLight);
-    t = t.replace(/{{COLOR_MEDIO}}/g, cMid);
+    // (Aceptamos {{VARIABLE}} y también \${variable} por si las pegaron crudas del código fuente)
+    t = t.replace(/{{COLOR_PRIMARIO}}/g, cAccent)
+         .replace(/\$\{cAccent\}/g, cAccent)
+         .replace(/\$\{color\}/g, cAccent);
+         
+    t = t.replace(/{{COLOR_SECUNDARIO}}/g, cDark)
+         .replace(/\$\{cDark\}/g, cDark);
+         
+    t = t.replace(/{{COLOR_CLARO}}/g, cLight)
+         .replace(/\$\{cLight\}/g, cLight);
+         
+    t = t.replace(/{{COLOR_MEDIO}}/g, cMid)
+         .replace(/\$\{cMid\}/g, cMid);
+
     // {{TEXTO}} y {{LOGO_URL}} se reemplazan luego por slide
     return t;
   }

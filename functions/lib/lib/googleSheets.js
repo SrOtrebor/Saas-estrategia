@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.prepararSemanaEnPlanilla = prepararSemanaEnPlanilla;
+exports.actualizarFilaPlanilla = actualizarFilaPlanilla;
 exports.actualizarPlanillaExistente = actualizarPlanillaExistente;
 const googleapis_1 = require("googleapis");
 let sheetsClient = null;
@@ -14,20 +16,18 @@ async function getSheetsClient() {
     sheetsClient = googleapis_1.google.sheets({ version: "v4", auth });
     return sheetsClient;
 }
-async function actualizarPlanillaExistente(sheetId, filas) {
+async function prepararSemanaEnPlanilla(sheetId, filas) {
     if (!sheetId || sheetId === "PENDIENTE") {
         throw new Error("No hay ID de Google Sheets configurado para esta marca.");
     }
     const sheets = await getSheetsClient();
     try {
-        // Verificar si la primera fila ya tiene encabezados leyendo la primera fila
         const res = await sheets.spreadsheets.values.get({
             spreadsheetId: sheetId,
             range: "A1:G1",
         });
         const headerExists = res.data.values && res.data.values.length > 0 && res.data.values[0][0] === "Día";
         if (!headerExists) {
-            // Escribir los encabezados primero si no existen
             await sheets.spreadsheets.values.update({
                 spreadsheetId: sheetId,
                 range: "A1:G1",
@@ -47,7 +47,6 @@ async function actualizarPlanillaExistente(sheetId, filas) {
                 }
             });
         }
-        // Preparar filas
         const values = filas.map(f => [
             f.dia,
             f.formato,
@@ -57,8 +56,7 @@ async function actualizarPlanillaExistente(sheetId, filas) {
             f.linkContenido,
             f.estado
         ]);
-        // Append de las filas de planificación
-        await sheets.spreadsheets.values.append({
+        const appendRes = await sheets.spreadsheets.values.append({
             spreadsheetId: sheetId,
             range: "A:G",
             valueInputOption: "USER_ENTERED",
@@ -67,11 +65,59 @@ async function actualizarPlanillaExistente(sheetId, filas) {
                 values,
             },
         });
-        return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+        const updatedRange = appendRes.data.updates?.updatedRange;
+        let startRow = -1;
+        if (updatedRange) {
+            const match = updatedRange.match(/![A-Z]+(\d+)/);
+            if (match && match[1]) {
+                startRow = parseInt(match[1]);
+            }
+        }
+        if (startRow === -1) {
+            throw new Error("No se pudo determinar el índice de fila insertada.");
+        }
+        return filas.map((_, i) => startRow + i);
     }
     catch (error) {
-        console.error("[Google Sheets] Error actualizando la planilla:", error);
+        console.error("[Google Sheets] Error preparando la semana en la planilla:", error);
         throw error;
     }
+}
+async function actualizarFilaPlanilla(sheetId, rowIndex, fila) {
+    if (!sheetId || sheetId === "PENDIENTE") {
+        throw new Error("No hay ID de Google Sheets configurado para esta marca.");
+    }
+    const sheets = await getSheetsClient();
+    try {
+        const values = [
+            [
+                fila.dia,
+                fila.formato,
+                fila.copy,
+                fila.hashtags,
+                fila.tipoEstrategia,
+                fila.linkContenido,
+                fila.estado
+            ]
+        ];
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `A${rowIndex}:G${rowIndex}`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: {
+                values,
+            },
+        });
+        return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`;
+    }
+    catch (error) {
+        console.error(`[Google Sheets] Error actualizando la fila ${rowIndex}:`, error);
+        throw error;
+    }
+}
+async function actualizarPlanillaExistente(sheetId, filas) {
+    // Mantener compatibilidad hacia atrás si es necesario
+    await prepararSemanaEnPlanilla(sheetId, filas);
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`;
 }
 //# sourceMappingURL=googleSheets.js.map

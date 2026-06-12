@@ -59,6 +59,7 @@ const axios_1 = __importDefault(require("axios"));
 const genai_1 = require("@google/genai");
 const googleSheets_1 = require("../lib/googleSheets");
 const imageGenerator_1 = require("../lib/imageGenerator");
+const envValidator_1 = require("../lib/envValidator");
 // ═══════════════════════════════════════════════════════════════
 // CLOUD FUNCTION: generarContenidoEspontaneo
 // Trigger: onCreate en /cola_ingesta/{id}
@@ -84,7 +85,7 @@ exports.generarContenidoEspontaneo = functions
     let historia = sesionSnap.exists ? sesionSnap.data()?.historia || [] : [];
     // ─── Paso 2: Generar respuesta con Gemini 2.5 Flash ────────
     functions.logger.info("[espontaneo] Consultando a Gemini con Google Grounding...");
-    const ai = new genai_1.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new genai_1.GoogleGenAI({ apiKey: (0, envValidator_1.requireEnv)("GEMINI_API_KEY") });
     // Agregar mensaje actual al historial temporalmente para el prompt
     const prompt = construirPromptBot(marca, ingesta.contenido_raw, historia);
     const geminiResponse = await ai.models.generateContent({

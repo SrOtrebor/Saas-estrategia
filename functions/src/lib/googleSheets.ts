@@ -25,7 +25,7 @@ export interface FilaPlanificacion {
   estado: string; // "Pendiente" o "Publicado"
 }
 
-export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPlanificacion[]): Promise<string> {
+export async function prepararSemanaEnPlanilla(sheetId: string, filas: FilaPlanificacion[]): Promise<number[]> {
   if (!sheetId || sheetId === "PENDIENTE") {
     throw new Error("No hay ID de Google Sheets configurado para esta marca.");
   }
@@ -33,7 +33,6 @@ export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPl
   const sheets = await getSheetsClient();
 
   try {
-    // Verificar si la primera fila ya tiene encabezados leyendo la primera fila
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
       range: "A1:G1",
@@ -42,7 +41,6 @@ export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPl
     const headerExists = res.data.values && res.data.values.length > 0 && res.data.values[0][0] === "Día";
 
     if (!headerExists) {
-      // Escribir los encabezados primero si no existen
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
         range: "A1:G1",
@@ -63,7 +61,6 @@ export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPl
       });
     }
 
-    // Preparar filas
     const values = filas.map(f => [
       f.dia,
       f.formato,
@@ -74,8 +71,7 @@ export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPl
       f.estado
     ]);
 
-    // Append de las filas de planificación
-    await sheets.spreadsheets.values.append({
+    const appendRes = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range: "A:G",
       valueInputOption: "USER_ENTERED",
@@ -85,9 +81,64 @@ export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPl
       },
     });
 
-    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+    const updatedRange = appendRes.data.updates?.updatedRange;
+    let startRow = -1;
+    if (updatedRange) {
+      const match = updatedRange.match(/![A-Z]+(\d+)/);
+      if (match && match[1]) {
+        startRow = parseInt(match[1]);
+      }
+    }
+
+    if (startRow === -1) {
+      throw new Error("No se pudo determinar el índice de fila insertada.");
+    }
+
+    return filas.map((_, i) => startRow + i);
   } catch (error) {
-    console.error("[Google Sheets] Error actualizando la planilla:", error);
+    console.error("[Google Sheets] Error preparando la semana en la planilla:", error);
     throw error;
   }
+}
+
+export async function actualizarFilaPlanilla(sheetId: string, rowIndex: number, fila: FilaPlanificacion): Promise<string> {
+  if (!sheetId || sheetId === "PENDIENTE") {
+    throw new Error("No hay ID de Google Sheets configurado para esta marca.");
+  }
+
+  const sheets = await getSheetsClient();
+
+  try {
+    const values = [
+      [
+        fila.dia,
+        fila.formato,
+        fila.copy,
+        fila.hashtags,
+        fila.tipoEstrategia,
+        fila.linkContenido,
+        fila.estado
+      ]
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `A${rowIndex}:G${rowIndex}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values,
+      },
+    });
+
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`;
+  } catch (error) {
+    console.error(`[Google Sheets] Error actualizando la fila ${rowIndex}:`, error);
+    throw error;
+  }
+}
+
+export async function actualizarPlanillaExistente(sheetId: string, filas: FilaPlanificacion[]): Promise<string> {
+  // Mantener compatibilidad hacia atrás si es necesario
+  await prepararSemanaEnPlanilla(sheetId, filas);
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`;
 }

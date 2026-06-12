@@ -274,6 +274,20 @@ export const ingestaEntradaEspontanea = functions
       const marca = marcasSnap.docs[0].data() as MarcaConfig;
       functions.logger.info(`[ingesta] Marca identificada: ${marca.nombre_comercial}`);
 
+      // ─── Paso 1.5: Comando de prueba ──────────────────────────
+      if (message.text && message.text.trim() === "/test") {
+        await enviarMensaje(chatId, "🛠️ Ejecutando prueba de sistema completa (Texto -> Imágenes -> Google Sheets)...");
+        const payload: IngestaPayload = {
+          id_marca: marca.id_marca,
+          tipo: "texto",
+          contenido_raw: "Armá un carrusel gráfico de prueba sobre los beneficios de usar IA en los negocios.",
+          created_at: Timestamp.now(),
+        };
+        await db.collection("cola_ingesta").add(payload);
+        res.status(200).send("OK");
+        return;
+      }
+
       // ─── Paso 2: Detectar tipo de payload ───────────────────
       let tipo: IngestaPayload["tipo"];
       let contenidoRaw: string;

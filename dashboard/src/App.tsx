@@ -21,7 +21,7 @@ function App() {
           }
         />
         <Route
-          path="/templates"
+          path="/templates/:id_marca"
           element={
             <PrivateRoute>
               <TemplateManager />

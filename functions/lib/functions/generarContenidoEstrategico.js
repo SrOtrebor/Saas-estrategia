@@ -57,6 +57,7 @@ const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-admin/firestore");
 const gemini_1 = require("../lib/gemini");
+const envValidator_1 = require("../lib/envValidator");
 const imageGenerator_1 = require("../lib/imageGenerator");
 const googleSheets_1 = require("../lib/googleSheets");
 const googleDocs_1 = require("../lib/googleDocs");
@@ -117,11 +118,12 @@ exports.procesarGeneracionMenu = functions.runWith({ memory: "1GB", timeoutSecon
     const marcaSnap = await db.collection("marcas").doc(boceto?.id_marca).get();
     if (marcaSnap.exists) {
         const contextoAdicional = `Por favor, desarrollá el contenido completo basándote estrictamente en esta idea aprobada por el usuario:\nTítulo: ${boceto?.titulo_corto}\nFormato esperado: ${boceto?.formato}\nResumen de la idea: ${boceto?.resumen}\n\nIMPORTANTE: El output debe respetar el formato ${boceto?.formato}.`;
-        const result = await generarYGuardarContenido(marcaSnap.data(), "input_espontaneo", contextoAdicional);
+        const googleSheetRow = boceto?.google_sheet_row;
+        const result = await generarYGuardarContenido(marcaSnap.data(), "input_espontaneo", contextoAdicional, googleSheetRow);
         const chatId = data.chat_id;
         if (chatId) {
             const axios = require("axios");
-            const botToken = process.env.TELEGRAM_BOT_TOKEN;
+            const botToken = (0, envValidator_1.requireEnv)("TELEGRAM_BOT_TOKEN");
             if (botToken) {
                 try {
                     const msgText = result.sheetsLink
@@ -165,7 +167,7 @@ exports.procesarGeneracionMenu = functions.runWith({ memory: "1GB", timeoutSecon
  * Orquesta la generación completa de un post:
  * lee la marca → construye prompt → llama IA → genera gráfico → guarda en Firestore.
  */
-async function generarYGuardarContenido(marca, origen, contextoAdicional) {
+async function generarYGuardarContenido(marca, origen, contextoAdicional, googleSheetRow) {
     const db = admin.firestore();
     // ─── PASO 1: Construir el prompt dinámico ──────────────────
     const prompt = construirPrompt(marca, contextoAdicional);
@@ -245,7 +247,13 @@ async function generarYGuardarContenido(marca, origen, contextoAdicional) {
             linkContenido: assetsLinks.length > 0 ? assetsLinks.join(", ") : "PENDIENTE DE ARCHIVOS",
             estado: "Pendiente"
         };
-        const sheetsLink = await (0, googleSheets_1.actualizarPlanillaExistente)(marca.google_sheet_id || "PENDIENTE", [fila]);
+        let sheetsLink;
+        if (googleSheetRow) {
+            sheetsLink = await (0, googleSheets_1.actualizarFilaPlanilla)(marca.google_sheet_id || "PENDIENTE", googleSheetRow, fila);
+        }
+        else {
+            sheetsLink = await (0, googleSheets_1.actualizarPlanillaExistente)(marca.google_sheet_id || "PENDIENTE", [fila]);
+        }
         return { postId: docRef.id, links: assetsLinks, sheetsLink };
     }
     catch (error) {
@@ -361,13 +369,24 @@ async function llamarIA(prompt, nombreMarca) {
 // ═══════════════════════════════════════════════════════════════
 async function proponerIdeasSemanales(marca) {
     const db = admin.firestore();
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = (0, envValidator_1.requireEnv)("TELEGRAM_BOT_TOKEN");
     const chatId = marca.credenciales_redes.telegram_chat_id;
     if (!botToken || !chatId) {
         functions.logger.warn(`[proponerIdeas] Faltan credenciales de Telegram para ${marca.nombre_comercial}`);
         return;
     }
     functions.logger.info(`[proponerIdeas] Generando menú de ideas para: ${marca.nombre_comercial}`);
+    // 1. Obtener las últimas ideas generadas para no repetirlas
+    const ideasPreviasSnap = await db.collection("banco_ideas")
+        .where("id_marca", "==", marca.id_marca)
+        .orderBy("created_at", "desc")
+        .limit(15)
+        .get();
+    let ideasPreviasContexto = "";
+    if (!ideasPreviasSnap.empty) {
+        const titulosPrevios = ideasPreviasSnap.docs.map(d => `- ${d.data().titulo_corto}`);
+        ideasPreviasContexto = `\nIDEAS YA PROPUESTAS RECIENTEMENTE (PROHIBIDO REPETIR ESTOS ÁNGULOS O TEMAS):\n${titulosPrevios.join("\n")}\n`;
+    }
     const promptIdeacion = `
 Sos el ESTRATEGA DE CONTENIDO principal para la marca ${marca.nombre_comercial} (Rubro: ${marca.datos_negocio.rubro}).
 Tu objetivo es armar un "Menú de Ideas Semanal" basado en TENDENCIAS ACTUALES.
@@ -376,20 +395,24 @@ IDENTIDAD DE MARCA:
 - Público: ${marca.datos_negocio.publico_objetivo}
 - Tono: ${marca.comunicacion.tono_de_voz}
 - Pilares: ${marca.comunicacion.pilares_contenido.join(", ")}
-
+${ideasPreviasContexto}
 TAREA:
 1. Investigá mentalmente cuáles son las tendencias, noticias o dolores más actuales de esta semana para este nicho.
 2. Generá exactamente 5 ideas de contenido (mezclá CARRUSEL y REEL_TELEPROMPTER).
+TOMA EN CUENTA: Debes generar exactamente 5 ideas, obligatoriamente asignadas a los días de la semana de Lunes a Viernes.
+
 3. Devolvé un JSON estricto con la siguiente estructura (NADA MÁS QUE EL JSON):
 
 {
   "ideas": [
     {
+      "dia_semana": "Lunes",
       "titulo_corto": "Título llamativo (máx 5 palabras)",
       "formato": "CARRUSEL o REEL_TELEPROMPTER",
       "resumen": "Descripción de 2 líneas de qué va a tratar el post y por qué va a funcionar."
     }
   ]
+
 }`;
     try {
         const aiResponse = await (0, gemini_1.generarConGemini)(promptIdeacion);
@@ -405,6 +428,25 @@ TAREA:
         const ideas = resultParsed.ideas || [];
         if (ideas.length === 0)
             return;
+        // Crear filas preliminares para Sheets
+        const filasPreliminares = ideas.map((idea) => ({
+            dia: idea.dia_semana || "Día no asignado",
+            formato: idea.formato || "",
+            copy: "",
+            hashtags: "",
+            tipoEstrategia: "Día Libre",
+            linkContenido: "A la espera de generación",
+            estado: "Propuesto"
+        }));
+        let rowIndices = [];
+        try {
+            if (marca.google_sheet_id) {
+                rowIndices = await (0, googleSheets_1.prepararSemanaEnPlanilla)(marca.google_sheet_id, filasPreliminares);
+            }
+        }
+        catch (err) {
+            functions.logger.error("Error al preparar la semana en Google Sheets", err);
+        }
         let mensajeTelegram = `📅 *MENÚ SEMANAL DE IDEAS* 📅\n_Investigué las tendencias actuales y estas son mis 5 propuestas para ${marca.nombre_comercial}:_\n\n`;
         const inline_keyboard = [];
         for (let i = 0; i < ideas.length; i++) {
@@ -412,14 +454,16 @@ TAREA:
             const ideaRef = await db.collection("banco_ideas").add({
                 id_marca: marca.id_marca,
                 titulo_corto: idea.titulo_corto,
+                dia_semana: idea.dia_semana,
                 formato: idea.formato,
                 resumen: idea.resumen,
                 estado: "BOCETO",
+                google_sheet_row: rowIndices[i] || null,
                 created_at: firestore_1.Timestamp.now()
             });
-            mensajeTelegram += `*${i + 1}. ${idea.titulo_corto}* [${idea.formato}]\n_${idea.resumen}_\n\n`;
+            mensajeTelegram += `*${idea.dia_semana || `Idea ${i + 1}`} - ${idea.titulo_corto}* [${idea.formato}]\n_${idea.resumen}_\n\n`;
             inline_keyboard.push([{
-                    text: `⚡ Generar Idea ${i + 1}`,
+                    text: `⚡ Generar ${idea.dia_semana || `Idea ${i + 1}`}`,
                     callback_data: `generar_post_${ideaRef.id}`
                 }]);
         }

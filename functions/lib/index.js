@@ -45,6 +45,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.procesarGeneracionMenu = exports.procesarMenuSemanal = exports.generarDocumentosEspontaneos = exports.generarContenidoEspontaneo = exports.generarGrillaSemanal = exports.ingestaEntradaEspontanea = void 0;
 const admin = __importStar(require("firebase-admin"));
+const envValidator_1 = require("./lib/envValidator");
+// MED-03: Validar que todas las variables estén presentes al iniciar la app
+(0, envValidator_1.validarEntorno)();
 // Inicializar Firebase Admin SDK (una sola vez, en el cold start)
 // En producción, las credenciales se infieren automáticamente del entorno.
 // En local con el emulador, asegurarse de haber ejecutado:
