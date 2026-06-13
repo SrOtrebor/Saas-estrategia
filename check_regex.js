@@ -1,0 +1,1 @@
+const fs = require('fs'); const content = fs.readFileSync('plantillas_16_importar.html', 'utf8'); const regex = /<!DOCTYPE html>[\s\S]*?<\/html>/gi; const matches = content.match(regex); matches.forEach((m, i) => console.log('Match', i, 'Length', m.length, 'Preview', m.substring(0, 50).replace(/\n/g, ' ')));

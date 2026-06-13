@@ -21,6 +21,7 @@ interface MarcaConfig {
     telegram_chat_id?: string;
   };
   plantillas?: string[];
+  pin_vinculacion?: string;
 }
 
 export default function AdminDashboard() {
@@ -52,7 +53,8 @@ export default function AdminDashboard() {
     credenciales_redes: {
       telegram_chat_id: ''
     },
-    plantillas: []
+    plantillas: [],
+    pin_vinculacion: ''
   });
 
   const fetchMarcas = async () => {
@@ -103,7 +105,8 @@ export default function AdminDashboard() {
         carpeta_drive_id: '', google_sheet_id: '', google_doc_id: '',
         identidad_visual: { logo_url: '' },
         credenciales_redes: { telegram_chat_id: '' },
-        plantillas: []
+        plantillas: [],
+        pin_vinculacion: ''
       });
       setLogoFile(null);
       setLogoPreview('');
@@ -193,6 +196,7 @@ export default function AdminDashboard() {
                         <span className="font-semibold text-white">ID Sheet:</span> {marca.google_sheet_id ? <span className="text-blue-400 font-mono">{marca.google_sheet_id.substring(0, 8)}...</span> : <span className="text-yellow-500 italic">No configurado</span>}
                         <span className="font-semibold text-white ml-2">ID Doc:</span> {marca.google_doc_id ? <span className="text-blue-400 font-mono">{marca.google_doc_id.substring(0, 8)}...</span> : <span className="text-yellow-500 italic">No conf.</span>}
                         <span className="font-semibold text-white ml-2">Telegram:</span> {marca.credenciales_redes?.telegram_chat_id ? <span className="text-green-400 font-bold">✓ Vinculado</span> : <span className="text-red-400 italic">Sin vincular</span>}
+                        <span className="font-semibold text-white ml-2">PIN:</span> {marca.pin_vinculacion ? <span className="text-blue-400 font-mono">***{marca.pin_vinculacion.slice(-1)}</span> : <span className="text-yellow-500 italic">No conf.</span>}
                       </div>
                     </div>
                   </div>
@@ -305,6 +309,10 @@ export default function AdminDashboard() {
                   <div>
                     <label className="block text-gray-400 mb-1">ID Carpeta Drive (Opcional)</label>
                     <input type="text" value={formData.carpeta_drive_id || ''} onChange={e => setFormData({ ...formData, carpeta_drive_id: e.target.value })} className="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-1">PIN de Vinculación (Telegram)</label>
+                    <input type="text" value={formData.pin_vinculacion || ''} onChange={e => setFormData({ ...formData, pin_vinculacion: e.target.value })} className="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="Ej: 1234" />
                   </div>
                   <div>
                     <label className="block text-gray-400 mb-1">ID Google Sheet (Grilla Mensual)</label>

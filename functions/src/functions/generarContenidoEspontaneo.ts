@@ -193,13 +193,18 @@ function construirPromptBot(marca: MarcaConfig, inputUsuario: string, historia: 
     ? "\nHISTORIAL RECIENTE DE LA CONVERSACIÓN:\n" + historialValido.map(h => `${h.rol.toUpperCase()}: ${h.texto}`).join("\n")
     : "\n[No hay historial reciente]";
 
-  return `Sos un COPYWRITER SENIOR y ESTRATEGA DE MARKETING para la marca ${marca.nombre_comercial} (Rubro: ${marca.datos_negocio.rubro}).
+  const rubro = marca.datos_negocio?.rubro || "General";
+  const publico = marca.datos_negocio?.publico_objetivo || "Público general";
+  const tono = marca.comunicacion?.tono_de_voz || "Profesional y persuasivo";
+  const pilares = marca.comunicacion?.pilares_contenido?.join(", ") || "Ventas, Marketing, Valor";
+
+  return `Sos un COPYWRITER SENIOR y ESTRATEGA DE MARKETING para la marca ${marca.nombre_comercial || 'la marca'} (Rubro: ${rubro}).
 Tu objetivo es ayudar al usuario a investigar tendencias, idear guiones y ejecutar carruseles gráficos.
 
 IDENTIDAD DE MARCA:
-- Público: ${marca.datos_negocio.publico_objetivo}
-- Tono: ${marca.comunicacion.tono_de_voz}
-- Pilares: ${marca.comunicacion.pilares_contenido.join(", ")}
+- Público: ${publico}
+- Tono: ${tono}
+- Pilares: ${pilares}
 
 Tenés DOS MODOS de operación (elegí el correcto según el input):
 

@@ -1,65 +1,76 @@
 # SaaS de Generación de Contenido - Documentación del Sistema
 
-Este documento resume la arquitectura, las decisiones técnicas y los flujos principales del sistema que hemos construido para automatizar la creación de contenido en redes sociales mediante Inteligencia Artificial.
+Este documento resume la arquitectura, las decisiones técnicas, los flujos principales del sistema y las recientes auditorías de seguridad implementadas para automatizar la creación de contenido en redes sociales mediante Inteligencia Artificial.
 
 ---
 
 ## 🏗️ Arquitectura General
 
 El sistema está dividido en dos partes principales:
-1. **Dashboard Web (Frontend):** Construido en React. Es el panel de control administrativo donde se gestionan los clientes (Marcas), se asignan configuraciones de "Tono de Voz", "Público Objetivo" y se administran las plantillas visuales.
+1. **Dashboard Web (Frontend):** Construido en React. Es el panel de control administrativo donde se gestionan los clientes (Marcas), se asignan configuraciones de "Tono de Voz", "Público Objetivo", se gestiona el PIN de seguridad y se administran las plantillas visuales.
 2. **Backend (Firebase Cloud Functions):** Escrito en TypeScript. Se encarga de procesar los mensajes de Telegram, comunicarse con la API de Gemini (IA), renderizar imágenes con Puppeteer, subir archivos a Firebase Storage y registrar datos en Firestore y Google Sheets.
 
 ---
 
-## 🎨 1. Sistema de Plantillas Gráficas (Custom Templates)
+## 🔒 1. Seguridad y Autenticación (Última Auditoría)
+
+El sistema cuenta con múltiples capas de seguridad implementadas recientemente para proteger contra vectores de ataque como Account Takeovers, Spam, Inyecciones y accesos no autorizados.
+
+- **Vinculación con PIN (Telegram):** El comando `/vincular` ahora requiere un PIN dinámico configurado desde el Dashboard (`/vincular <id_marca> <PIN>`). Esto previene el *Account Takeover* y asegura que solo usuarios autorizados puedan conectar un chat a una marca.
+- **Rate Limiting:** El webhook de Telegram cuenta con limitación de solicitudes (Rate Limiting) basado en el ID de Chat, previniendo abusos de tipo *Spam* y sobreconsumo de cuota en Google Cloud y Gemini.
+- **Protección contra Prompt Injection:** El input del usuario en Telegram se inyecta en la IA delimitado por etiquetas XML estrictas (`<input_usuario>`), mitigando intentos de secuestro de las directrices del sistema por parte de clientes maliciosos.
+- **Bloqueo SSRF y Arbitrary File Read:** El generador de imágenes con Puppeteer desactiva la ejecución de Javascript (`javascriptEnabled: false`) y cuenta con una estricta política de validación de URLs y CSP (Content Security Policy). Los enlaces de Google Docs se evaden explícitamente para no renderizar contenido arbitrario ni revelar IPs del servidor.
+- **Reglas de Base de Datos Estrictas:** Tanto `firestore.rules` como `storage.rules` están configuradas en `false` por defecto, permitiendo lectura/escritura **exclusivamente al backend** a través de la cuenta de servicio de Admin SDK. Ningún usuario público puede consultar o sobreescribir datos en Firebase.
+
+---
+
+## 🎨 2. Sistema de Plantillas Gráficas (Custom Templates)
 
 Hemos evolucionado el motor gráfico para que los diseños sean **100% personalizados por cliente** y no dependan de una estructura fija.
 
 - **Diseño Granular:** Se eliminó la configuración global de colores en la base de datos. Ahora, **cada cliente tiene su propio paquete de plantillas HTML**. Los colores, degradados y tipografías se inyectan directamente (hardcodeados) en el código CSS de las plantillas. Esto permite que un cliente tenga un fondo oscuro en una variante y un fondo claro en otra.
-- **Gestor en el Dashboard:** En el panel web, agregamos el módulo `TemplateManager`. Permite visualizar, importar archivos `.html` completos y borrar todas las plantillas.
-- **Renderizado (Puppeteer):** Cuando la IA define qué texto va en el gráfico, el backend selecciona una de las plantillas HTML del cliente, reemplaza la etiqueta `{{TEXTO}}` por el texto generado, y `{{LOGO_URL}}` por el logo de la marca. Luego, levanta un navegador "invisible" de 1080x1080px, le saca una foto y lo guarda.
+- **Gestor en el Dashboard:** En el panel web, el módulo `TemplateManager` permite visualizar, importar archivos `.html` completos y borrar todas las plantillas.
+- **Renderizado Seguro (Puppeteer):** Cuando la IA define qué texto va en el gráfico, el backend selecciona una plantilla, la hidrata con los datos de forma segura (sin inyección JS) y toma una captura de pantalla guardando el resultado en Storage.
 
 ---
 
-## 🤖 2. Ingesta y Webhook de Telegram (`ingestaEntradaEspontanea`)
+## 🤖 3. Ingesta y Webhook de Telegram (`ingestaEntradaEspontanea`)
 
 El cliente interactúa casi exclusivamente a través de un Bot de Telegram. Todo mensaje que envía impacta en el webhook del backend.
 
-- **Freno de Seguridad:** Agregamos una validación crítica temprana. Si un cliente envía un mensaje o pide generar un post pero **tiene 0 plantillas cargadas** en el dashboard, el bot detiene el proceso instantáneamente y le devuelve una alerta ("⚠️ Este cliente no tiene plantillas cargadas..."). No consume tokens de IA ni satura el servidor.
-- **Voz a Texto:** Si el cliente manda un audio, el bot utiliza la capacidad multimodal de Gemini para transcribir el audio, extraer la idea central y enviarla a la cola de generación.
-- **Comandos de Prueba:** Comandos como `/test` y `/test_plantillas` permiten verificar de manera forzada el pipeline visual de un cliente y revisar cómo se ven sus diseños sin afectar su grilla de publicaciones oficiales.
+- **Freno de Seguridad y Autenticación Temprana:** Si el usuario no está vinculado, o si un cliente pide generar contenido y **tiene 0 plantillas cargadas**, el bot detiene el proceso instantáneamente. No consume tokens de IA ni satura el servidor.
+- **Voz a Texto:** El bot utiliza la capacidad multimodal de Gemini para transcribir notas de audio, extraer la idea central y enviarla a la cola de generación.
+- **Comandos de Prueba:** Los comandos `/test` y `/test_plantillas` permiten verificar de manera forzada el pipeline visual de un cliente sin afectar la grilla de publicaciones oficiales.
 
 ---
 
-## 🧠 3. IA, Memoria Anti-Repetición y Google Sheets (`generarContenidoEstrategico`)
+## 🧠 4. IA, Memoria Anti-Repetición y Google Sheets
 
-Una vez que la idea entra a la cola, una función en segundo plano se encarga del trabajo pesado usando un prompt muy robusto y estructurado.
+Una vez que la idea entra a la cola, el worker (`generarContenidoEstrategico`) se encarga del trabajo pesado.
 
-- **Memoria Anti-Repeticiones:** Antes de que la IA escriba el post, el backend consulta en Firestore los últimos 5 posteos generados para esa marca. Se los pasamos a la IA como "contexto histórico" para garantizar que **no repita ganchos, formatos ni enfoques** que se usaron recientemente.
-- **Bloqueo Optimista de Días (Sheets):** Cuando el contenido se genera exitosamente, calculamos qué día de la semana le toca publicar. En ese instante, insertamos una fila en Google Sheets con estado "PROCESANDO" para "reservar" ese día (ej: Viernes) y evitar que otro posteo generado concurrentemente se asigne al mismo día. Cuando el proceso gráfico termina, se actualiza esa fila con los links de las imágenes finales.
-- **Formato Adaptable:** La IA es capaz de determinar si la idea del cliente sirve mejor para un *Carrusel*, una *Imagen* fija o un guión para *Reel (Teleprompter)*. 
+- **Memoria Anti-Repeticiones:** Antes de que la IA escriba el post, el backend consulta en Firestore los últimos 5 posteos generados. Esto sirve como "contexto histórico" para que la IA **no repita ganchos, formatos ni enfoques**.
+- **Bloqueo Optimista de Días (Sheets):** El worker "reserva" un día en Google Sheets insertando una fila con estado "PROCESANDO" para evitar colisiones de asignación de días.
+- **Formato Adaptable:** La IA es capaz de determinar automáticamente si la idea sirve mejor para un *Carrusel*, una *Imagen* fija o un guión para *Reel (Teleprompter)*.
 
 ---
 
-## 🎯 4. Cómo dar de alta a un Cliente Nuevo (Prompts)
+## 🎯 5. Alta de Clientes (Dashboard)
 
-Para que el bot brinde resultados óptimos, en el Dashboard se deben completar los siguientes campos con la mayor granularidad posible:
+Para un onboarding correcto, en el Dashboard se completan campos vitales para el Prompt de IA:
 
-- **Propuesta de Valor:** "Prendas deportivas seamless, sin costuras, que modelan el cuerpo". (Evitar cosas genéricas como "Ropa deportiva de calidad").
-- **Tono de Voz (Reglas de comportamiento):** 
-  - *Personalidad:* Cálido, motivador y empático. Hablar de "vos".
-  - *Reglas:* Oraciones cortas. Evitar lenguaje corporativo.
-  - *Estructura:* Arrancar siempre con un gancho (pregunta) y terminar con un Llamado a la Acción fuerte.
-- **Pilares de Contenido:** 1. Educación/Tips. 2. Inspiración/Mindset. 3. Venta Suave (beneficios del producto). 
+- **Propuesta de Valor:** Contexto detallado de negocio.
+- **Tono de Voz:** Atributos emocionales y de estilo (ej. formal, callejero).
+- **Pilares de Contenido:** Ejes temáticos (Educación, Inspiración, Venta, etc.).
+- **Credenciales y PIN:** Identificadores de Sheets, Docs, Drive y PIN para la vinculación oficial en Telegram.
 
 ---
 
 ## 📝 Resumen del Flujo Completo
 
-1. El cliente aprueba sus plantillas gráficas (dorado/premium/etc.) a través del Panel Web.
-2. El cliente manda un audio a Telegram contando una idea suelta.
-3. El webhook frena si no hay plantillas, si las hay, transcribe el audio y lo manda a la cola.
-4. El worker lee los últimos posts para no repetir temas, elabora el copywriting perfecto y define un día de publicación (pre-reservando el espacio en Sheets).
-5. El worker gráfico (`imageGenerator`) agarra una plantilla HTML aleatoria de ese cliente, estampa el texto y genera las imágenes PNG.
-6. El posteo final (textos + imágenes) queda guardado en la base de datos listo para revisión/publicación y actualizado en Google Sheets.
+1. El administrador da de alta la PyME y el PIN en el Dashboard, subiendo plantillas gráficas HTML personalizadas.
+2. El cliente vincula su cuenta en Telegram usando `/vincular [marca] [PIN]`.
+3. El cliente manda un texto o audio con una idea suelta.
+4. El webhook valida sesión, permisos y rate limits. Pasa el mensaje a la cola de procesamiento.
+5. El worker elabora el copy, asegura no repetir tópicos recientes, detecta si es Carrusel/Reel/Post y "reserva" el espacio en Sheets.
+6. El worker gráfico estampa el texto en las plantillas y genera PNGs.
+7. El post final queda alojado en Firebase y registrado en Sheets para su posterior publicación.

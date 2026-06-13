@@ -231,18 +231,53 @@ export const ingestaEntradaEspontanea = functions
     try {
       const db = admin.firestore();
 
+      // ─── Paso 0.5: Rate Limiting (Seguridad) ────────────────────
+      const rateLimitRef = db.collection("rate_limits").doc(chatId);
+      const rateLimitDoc = await rateLimitRef.get();
+      const ahoraLimit = Date.now();
+      
+      if (rateLimitDoc.exists) {
+        const dataRL = rateLimitDoc.data();
+        if (ahoraLimit - dataRL!.timestamp < 60000) {
+          if (dataRL!.count >= 5) {
+            // No enviar mensaje de alerta cada vez para no caer en spam, enviar solo en el límite
+            if (dataRL!.count === 5) {
+              await enviarMensaje(chatId, "⚠️ Límite de mensajes excedido. Por favor, esperá un minuto.");
+            }
+            await rateLimitRef.update({ count: admin.firestore.FieldValue.increment(1) });
+            res.status(200).send("OK");
+            return;
+          }
+          await rateLimitRef.update({ count: admin.firestore.FieldValue.increment(1) });
+        } else {
+          await rateLimitRef.set({ count: 1, timestamp: ahoraLimit });
+        }
+      } else {
+        await rateLimitRef.set({ count: 1, timestamp: ahoraLimit });
+      }
+
       // ─── Paso 0: Comando de vinculación ───────────────────────
       if (message.text && message.text.trim().startsWith("/vincular")) {
-        const marcaIdStr = message.text.replace("/vincular", "").trim();
-        if (!marcaIdStr) {
-          await enviarMensaje(chatId, "⚠️ Tenés que escribir el comando así: /vincular ID_MARCA");
+        const args = message.text.replace("/vincular", "").trim().split(" ");
+        if (args.length !== 2) {
+          await enviarMensaje(chatId, "⚠️ Tenés que escribir el comando así: /vincular ID_MARCA PIN");
           res.status(200).send("OK");
           return;
         }
         
+        const marcaIdStr = args[0];
+        const pinIngresado = args[1];
+
         const marcaDoc = await db.collection("marcas").doc(marcaIdStr).get();
         if (!marcaDoc.exists) {
           await enviarMensaje(chatId, `❌ No existe ninguna marca con el ID "${marcaIdStr}". Revisá el Dashboard.`);
+          res.status(200).send("OK");
+          return;
+        }
+
+        const dataMarca = marcaDoc.data();
+        if (!dataMarca?.pin_vinculacion || dataMarca.pin_vinculacion !== pinIngresado) {
+          await enviarMensaje(chatId, `❌ El PIN de vinculación es incorrecto o la marca no tiene PIN configurado.`);
           res.status(200).send("OK");
           return;
         }
@@ -251,7 +286,7 @@ export const ingestaEntradaEspontanea = functions
           credenciales_redes: { telegram_chat_id: chatId }
         }, { merge: true });
         
-        await enviarMensaje(chatId, `✅ ¡Éxito! Este chat quedó vinculado a la marca: *${marcaDoc.data()?.nombre_comercial}*. Ya podés mandarme audios, textos o fotos con ideas.`);
+        await enviarMensaje(chatId, `✅ ¡Éxito! Este chat quedó vinculado a la marca: *${dataMarca?.nombre_comercial}*. Ya podés mandarme audios, textos o fotos con ideas.`);
         res.status(200).send("OK");
         return;
       }

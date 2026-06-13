@@ -81,20 +81,33 @@ async function generarMuestrarioPlantillas(identidad, idMarca) {
     try {
         const textoHtml = `<h2>TÍTULO DE MUESTRA</h2><p>Así es como se ve un párrafo dentro de este diseño. Se probará con tus colores.</p><ul><li>Punto a destacar</li><li>Otro punto importante</li></ul><div class="highlight">Mensaje destacado en la parte inferior</div>`;
         for (let i = 0; i < plantillasList.length; i++) {
+            const colorPrimario = identidad.color_primario_hex || "#a28a68";
+            const colorSecundario = identidad.color_secundario_hex || "#0e132b";
+            const colorClaro = "#e0e1dd";
+            const colorMedio = "#39506b";
             let htmlPlaca = plantillasList[i]
                 .replace(/{{TEXTO}}/g, textoHtml)
                 .replace(/\$\{texto\}/g, textoHtml)
                 .replace(/{{SLIDE_ACTUAL}}/g, "1")
                 .replace(/{{SLIDE_TOTAL}}/g, "1")
                 .replace(/{{LOGO_URL}}/g, identidad.logo_url || "")
-                .replace(/\$\{logo\}/g, identidad.logo_url || "");
+                .replace(/\$\{logo\}/g, identidad.logo_url || "")
+                .replace(/{{COLOR_PRIMARIO}}/g, colorPrimario)
+                .replace(/{{COLOR_SECUNDARIO}}/g, colorSecundario)
+                .replace(/{{COLOR_CLARO}}/g, colorClaro)
+                .replace(/{{COLOR_MEDIO}}/g, colorMedio)
+                .replace(/\$\{color\}/g, colorPrimario)
+                .replace(/\$\{color_primario\}/g, colorPrimario)
+                .replace(/\$\{color_secundario\}/g, colorSecundario)
+                .replace(/\$\{color_claro\}/g, colorClaro)
+                .replace(/\$\{color_medio\}/g, colorMedio);
             const page = await browser.newPage();
             await page.setViewport({ width: CANVAS_SIZE, height: CANVAS_SIZE });
             await page.setJavaScriptEnabled(false);
             await page.setContent(htmlPlaca, { waitUntil: "domcontentloaded" });
             const buffer = await page.screenshot({ type: "jpeg", quality: 80 });
             await page.close();
-            const fileName = `posts/${idMarca}/muestrario/plantilla_${i + 1}.jpg`;
+            const fileName = `posts/${idMarca}/muestrario/plantilla_${i + 1}_${Date.now()}.jpg`;
             const publicUrl = await subirConReintentos(bucket, fileName, buffer);
             urls.push(publicUrl);
         }
@@ -154,13 +167,26 @@ async function generarCarrusel(textos, identidad, nombreMarca, idMarca, idPost) 
                     }
                 }
             }
+            const colorPrimario = identidad.color_primario_hex || "#a28a68";
+            const colorSecundario = identidad.color_secundario_hex || "#0e132b";
+            const colorClaro = "#e0e1dd";
+            const colorMedio = "#39506b";
             const htmlPlaca = plantillaHtml
                 .replace(/{{TEXTO}}/g, textoHtml)
                 .replace(/\$\{texto\}/g, textoHtml)
                 .replace(/{{SLIDE_ACTUAL}}/g, String(i + 1))
                 .replace(/{{SLIDE_TOTAL}}/g, String(totalSlides))
                 .replace(/{{LOGO_URL}}/g, identidad.logo_url || "")
-                .replace(/\$\{logo\}/g, identidad.logo_url || "");
+                .replace(/\$\{logo\}/g, identidad.logo_url || "")
+                .replace(/{{COLOR_PRIMARIO}}/g, colorPrimario)
+                .replace(/{{COLOR_SECUNDARIO}}/g, colorSecundario)
+                .replace(/{{COLOR_CLARO}}/g, colorClaro)
+                .replace(/{{COLOR_MEDIO}}/g, colorMedio)
+                .replace(/\$\{color\}/g, colorPrimario)
+                .replace(/\$\{color_primario\}/g, colorPrimario)
+                .replace(/\$\{color_secundario\}/g, colorSecundario)
+                .replace(/\$\{color_claro\}/g, colorClaro)
+                .replace(/\$\{color_medio\}/g, colorMedio);
             const page = await browser.newPage();
             await page.setViewport({ width: CANVAS_SIZE, height: CANVAS_SIZE });
             // Seguridad: deshabilitar JS para evitar SSRF desde plantillas HTML externas

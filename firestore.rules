@@ -3,13 +3,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Solo usuarios autenticados pueden leer/escribir en el Dashboard (marcas y paquetes)
+    function isAdmin() {
+      return request.auth != null && (request.auth.token.admin == true || request.auth.token.email == 'Laforcada@gmail.com');
+    }
+
+    // Solo administradores pueden leer/escribir en el Dashboard (marcas y paquetes)
     match /marcas/{marcaId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
 
     match /paquetes_plantillas/{paqueteId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
 
     // Las colas internas son escritas por Cloud Functions (Admin SDK) — bloquear acceso web
@@ -29,14 +33,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // El planificador solo puede ser leído por usuarios autenticados
-    match /planificador_contenido/{postId} {
-      allow read, write: if request.auth != null;
+    match /cola_test_plantillas/{docId} {
+      allow read, write: if false;
     }
 
-    // El banco de ideas solo puede ser leído por usuarios autenticados
+    // El planificador solo puede ser leído por administradores
+    match /planificador_contenido/{postId} {
+      allow read, write: if isAdmin();
+    }
+
+    // El banco de ideas solo puede ser leído por administradores
     match /banco_ideas/{ideaId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
 
     // Bloquear todo lo demás por defecto
